@@ -4,7 +4,7 @@
 Basic usage:
     Pkg.clone("https://github.com/JobJob/RickTracy")
     using RickTracy
-    
+
     fred = "flintstone"
     barney = 10
 
@@ -15,9 +15,9 @@ outputs:
 
     1-element Array{String,1}:
     "flintstone"
-    
+
 A numbered location string will be added to the trace entry to identify
-the code location. 
+the code location.
 
     @snapsat 1
 
@@ -26,7 +26,7 @@ outputs:
     2-element Array{RickTracy.TraceItem,1}:
      RickTracy.TraceItem{String}("1","fred","flintstone",1.47706e9)
      RickTracy.TraceItem{Int64}("1","barney",10,1.47706e9)
-     
+
 To specify your own location use:
 
     @snapat "decriptive location name" var1 var2
@@ -59,6 +59,11 @@ behaviour call RickTracy.set_autotrack(false)
 
     @initsnaps fred barney bambam
 
+    fred = "1"
+    barney = "2"
+    bambam = "3"
+    @snapall
+
     for i in 1:10
         fred = 2*i
         barney = 10*i
@@ -69,7 +74,8 @@ behaviour call RickTracy.set_autotrack(false)
 
 outputs:
 
-    10-element Array{Int64,1}:
+    11-element Array{Any,1}:
+    "3"
     100
     200
     300
@@ -80,4 +86,3 @@ outputs:
     800
     900
     1000
-    

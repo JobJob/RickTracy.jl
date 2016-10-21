@@ -2,10 +2,10 @@ module RickTracy
 
 export TraceItem,
 @snap, @snapat, @snapNth, @snapatNth, snap_everyNth,
-@initsnaps, @snapall, @snapallat,
-@clearsnaps, brandnewsnaps, clearsnaps, next_global_location,
-snaps_at, @snaps_at, snapvals, @snapvals, snapitems, @snapitems,
-allsnaps, @allsnaps, _num_trace_locations, happysnaps
+@initsnaps, @snapall, @snapallat, @snapallatNth,
+clearsnaps, @clearsnaps, brandnewsnaps, next_global_location,
+snapsat, @snapsat, snapvals, @snapvals, snapitems, @snapitems,
+allsnaps, @allsnaps, _num_trace_locations, happysnaps, track_exprstr, tracked_exprs
 
 using DataStructures
 
@@ -40,10 +40,20 @@ brandnewsnaps() = begin
     global _num_trace_locations = 0
 end
 
+
 clearsnaps(exprstr) = begin
     #find snaps that match key, and remove them from the happysnaps vector
     filter!((st)->st.exprstr == exprstr, happysnaps) #slow
 end
+
+macro clearsnaps()
+    :(brandnewsnaps) |> esc
+end
+
+macro clearsnaps(exprs...)
+    :(@initsnaps(exprs)) |> esc
+end
+
 
 set_autotrack(on::Bool) = global autotrack = on
 get_autotrack() = autotrack
@@ -57,9 +67,13 @@ snap_everyNth(location, N, exprstrs, vals) = begin
     location_counts[location]%N == 0 &&
         for (exprstr, val) in zip(exprstrs, vals)
             snap(location, exprstr, val)
-            tracked_exprs[exprstr] = true
+            track_exprstr(exprstr)
         end
     location_counts[location] += 1
+end
+
+track_exprstr(exprstr) = begin
+    tracked_exprs[exprstr] = true
 end
 
 snap(location, exprstr, val) = push!(happysnaps, TraceItem(location, exprstr, val))
@@ -68,37 +82,35 @@ snap(location, exprstr, val) = push!(happysnaps, TraceItem(location, exprstr, va
 pluck(objarr, sym) = map((obj)->getfield(obj, sym), objarr)
 
 # get snaps
-snaps_at(location) = filter((ti)->ti.location == "$location", happysnaps)
+snapsat(location) = filter((ti)->ti.location == "$location", happysnaps)
 snapitems(exprstr) = filter((ti)->ti.exprstr == exprstr, happysnaps)
 snapvals(exprstr) = pluck(snapitems(exprstr), :val)
 allsnaps() = copy(happysnaps)
 
-macro snaps_at(location_expr)
+macro snapsat(location_expr)
     locstr = "$location_expr"
-    :(snaps_at($locstr))
+    :(snapsat($locstr)) |> esc
 end
 
 macro snapvals(expr)
     exprstr = "$expr"
-    :(snapvals($exprstr))
+    :(snapvals($exprstr)) |> esc
 end
 
 macro snapitems(expr)
     exprstr = "$expr"
-    :(snapitems($exprstr))
+    :(snapitems($exprstr)) |> esc
 end
 
-macro allsnaps() :(allsnaps()) end
-
-macro clearsnaps()
-    :(brandnewsnaps())
+macro allsnaps()
+    :(allsnaps()) |> esc
 end
 
 macro initsnaps(exprs...)
     res = :()
     for expr in exprs
         exprstr = "$expr" #expr as a string
-        res = :($res; clearsnaps($exprstr))
+        res = :($res; clearsnaps($exprstr); track_exprstr($exprstr))
     end
     res |> esc
 end
@@ -202,7 +214,7 @@ e.g.
     fred = "flintstone"
     barney = 10
     @snapat "bedrock" fred barney
-    @snaps_at "bedrock"
+    @snapsat "bedrock"
 
 outputs:
 
