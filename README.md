@@ -50,10 +50,32 @@ returns:
      "wilma"
      "betty"
 
+Conditional tracing can be done using the `@snapif` and `@snapifat`
+for example:
 
-By default all variables/expressions `@snap`ed will be added to the watch list,
-and logged/snapped on subsequent calls to `@snapall`. To disable this
-behaviour call RickTracy.set_autotrack(false)
+    for i in 1:10
+        @snapif i%3 == 0 i
+        @snapifat i%4 ==0 i
+    end
+    @snapvals i
+
+results in:
+
+    5-element Array{Int64,1}:
+     3
+     4
+     6
+     8
+     9
+a subsequent call to `@snapsatvals "loopcity" i` gives:
+
+    2-element Array{Int64,1}:
+    4
+    8
+
+ By default the variable/expression will be added to the watch list,
+ and logged/snapped on calls to `@snapall` that are parsed/loaded later than
+ this call.. To disable this behaviour call RickTracy.set_autotrack(false).
 
 `@snapall` example:
 
