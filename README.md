@@ -75,7 +75,8 @@ a subsequent call to `@snapsatvals "loopcity" i` gives:
 
  By default the variable/expression will be added to the watch list,
  and logged/snapped on calls to `@snapall` that are parsed/loaded later than
- this call.. To disable this behaviour call RickTracy.set_autotrack(false).
+ any calls to any of the `@snap...` macros. To disable this behaviour call
+ RickTracy.set_autotrack(false).
 
 `@snapall` example:
 
