@@ -103,12 +103,10 @@ get_autowatch() = autowatch
 watched_exprstrs() = keys(watched_exprs)
 
 watch_exprstr(exprstr) = begin
-    !haskey(watched_exprs, exprstr) && println("adding $exprstr to watched exprs")
     watched_exprs[exprstr] = true
 end
 
 unwatch_exprstr(exprstr) = begin
-    haskey(watched_exprs, exprstr) && println("removing $exprstr from watched exprs")
     delete!(watched_exprs, exprstr)
 end
 
