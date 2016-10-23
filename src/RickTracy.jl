@@ -5,18 +5,11 @@ export TraceItem,
 @watch, @unwatch, @unwatchall, @snapall, @snapallat, @snapallatNth,
 clearsnaps, @clearsnaps, @clearallsnaps, brandnewsnaps!, next_global_location,
 snapsat, @snapsat, snapvals, @snapvals, snapitems, @snapitems,
-snapsatvals, @snapsatvals,
+snapsatvals, @snapsatvals, @snapvalsdict,
 allsnaps, @allsnaps, _num_trace_locations, happysnaps
 
-using DataStructures
 
-type TraceItem{T}
-    location::String
-    exprstr::String
-    val::T
-    ts::Float64 #time stamp
-end
-TraceItem{T}(location, exprstr, val::T) = TraceItem{T}(location, exprstr, val, time())
+using DataStructures
 
 __init__() = begin
     global _num_trace_locations = 0
@@ -25,6 +18,18 @@ __init__() = begin
     global happysnaps = Vector{TraceItem}()
     global autowatch = true
 end
+
+
+###############################################################################
+# Types
+###############################################################################
+type TraceItem{T}
+    location::String
+    exprstr::String
+    val::T
+    ts::Float64 #time stamp
+end
+TraceItem{T}(location, exprstr, val::T) = TraceItem{T}(location, exprstr, val, time())
 
 ###############################################################################
 # Clearance Clarence
@@ -92,6 +97,18 @@ end
 macro snapitems(expr)
     exprstr = "$expr"
     :(snapitems($exprstr)) |> esc
+end
+
+dicout() = begin
+    res = DefaultDict(String, Vector{Any}, Vector{Any})
+    for si in happysnaps
+        push!(res[si.exprstr], si.val)
+    end
+    res
+end
+
+macro snapvalsdict()
+    :(RickTracy.dicout())
 end
 
 ###############################################################################

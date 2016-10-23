@@ -57,7 +57,6 @@ facts("snapall") do
     fred = "1"
     barney = "2"
     bambam = "3"
-    # println(:(@snapallatNth "first" 1) |> macroexpand)
     @snapallatNth "first" 1
 
     for i in 1:10
@@ -75,6 +74,25 @@ facts("undefined is defined as :undefined") do
     @snap barney
     @fact (@snapvals barney) --> [:undefined]
     @fact_throws DomainError (@snap throw(DomainError()))
+end
+
+facts("Dicout") do
+    @clearallsnaps
+    @watch fred barney bambam
+
+    fred = "1"
+    barney = "2"
+    bambam = "3"
+    @snapallatNth "first" 1
+
+    for i in 1:10
+        fred = 2*i
+        barney = 10*i
+        bambam = 100*i
+        @snapallatNth "second" 1
+    end
+    resdic = @snapvalsdict
+    @fact (resdic["bambam"]) --> Any["3",100,200,300,400,500,600,700,800,900,1000]
 end
 
 FactCheck.exitstatus()
