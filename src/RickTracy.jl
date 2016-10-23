@@ -137,29 +137,12 @@ macro allsnaps()
     :(allsnaps()) |> esc
 end
 
-# macro snapallatNth(location, N)
-#     quote
-#         exprstrs = []
-#         vals=[]
-#         for exprstr in watched_exprstrs()
-#             exprvalfn = eval(parse("()->$exprstr"))
-#             push!(exprstrs, exprstr)
-#             push!(vals, exprvalfn())
-#             runexpr(fullexpr)
-#         end
-#         snap_everyNth($location, $N, exprstrs, vals)
-#         happysnaps
-#     end |> esc
-# end
-
+"""
+A little too much like snapatNth for my liking
+"""
 macro snapallatNth(location, N)
-    res = :(exprstrs = []; vals=[])
-    for exprstr in watched_exprstrs()
-        expr = parse(exprstr)
-        res = :($res; push!(exprstrs, $exprstr);  push!(vals, $expr);) # @show exprstrs vals)
-    end
-    res = :($res; snap_everyNth($location, $N, exprstrs, vals); happysnaps)
-    res |> esc
+    exprs = map(parse, watched_exprstrs())
+    :(@snapatNth $location $N $exprs) |> esc
 end
 
 macro snapall()
