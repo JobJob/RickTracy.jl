@@ -76,11 +76,11 @@ a subsequent call to `@snapsatvals "loopcity" i` gives:
  By default the variable/expression will be added to the watch list,
  and logged/snapped on calls to `@snapall` that are parsed/loaded later than
  any calls to any of the `@snap...` macros. To disable this behaviour call
- RickTracy.set_autotrack(false).
+ RickTracy.set_autowatch(false).
 
 `@snapall` example:
 
-    @initsnaps fred barney bambam
+    @watch fred barney bambam
 
     fred = "1"
     barney = "2"

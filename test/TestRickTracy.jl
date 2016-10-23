@@ -21,7 +21,7 @@ facts("snap the Nth") do
 end
 
 facts("snapat all on the floow") do
-    @clearsnaps
+    @clearallsnaps
     fred = "Savage"
     winnie = 8.5
     @snapat "McKinley" fred winnie
@@ -34,7 +34,7 @@ facts("snapat all on the floow") do
 end
 
 facts("snapif") do
-    @clearsnaps
+    @clearallsnaps
     for i in 1:10
         @snapif i%3 == 0 i
     end
@@ -42,17 +42,17 @@ facts("snapif") do
 end
 
 facts("snapifat") do
-    @clearsnaps
+    @clearallsnaps
     for i in 1:10
         @snapifat i%3 == 0 "looptown" i
     end
     snapitems = @snapsat "looptown"
-    @fact RickTracy.pluck(snapitems, :val) --> [3,6,9]
+    @fact (@snapsatvals "looptown" i) --> [3,6,9]
 end
 
 facts("snapall") do
-    @clearsnaps
-    @initsnaps fred barney bambam
+    @clearallsnaps
+    @watch fred barney bambam
 
     fred = "1"
     barney = "2"

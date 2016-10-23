@@ -1,13 +1,12 @@
 module RickTracy
 
 export TraceItem,
-@snap, @snapat, @snapNth, @snapatNth, snap_everyNth,
-@initsnaps, @snapall, @snapallat, @snapallatNth, @snapif, @snapifat,
-clearsnaps, @clearsnaps, brandnewsnaps!, next_global_location,
+@snap, @snapat, @snapNth, @snapatNth, snap_everyNth, @snapif, @snapifat,
+@watch, @unwatch, @unwatchall, @snapall, @snapallat, @snapallatNth,
+clearsnaps, @clearsnaps, @clearallsnaps, brandnewsnaps!, next_global_location,
 snapsat, @snapsat, snapvals, @snapvals, snapitems, @snapitems,
 snapsatvals, @snapsatvals,
-allsnaps, @allsnaps, _num_trace_locations, happysnaps,
-track_exprstr
+allsnaps, @allsnaps, _num_trace_locations, happysnaps
 
 using DataStructures
 
@@ -19,69 +18,50 @@ type TraceItem{T}
 end
 TraceItem{T}(location, exprstr, val::T) = TraceItem{T}(location, exprstr, val, time())
 
-_num_trace_locations = 0
-
 __init__() = begin
     global _num_trace_locations = 0
     global location_counts = DefaultDict(String, Int, 0) #number of times tracepoint at each location has been hit (but not necessarily logged)
-    global tracked_exprs = Dict{String, Bool}()
+    global watched_exprs = Dict{String, Bool}()
     global happysnaps = Vector{TraceItem}()
-    global autotrack = true
+    global autowatch = true
 end
 
-next_global_location() = begin
-    global _num_trace_locations
-    _num_trace_locations += 1
-    "$_num_trace_locations"
-end
+###############################################################################
+# Clearance Clarence
+###############################################################################
 
 brandnewsnaps!() = begin
     empty!(happysnaps)
     empty!(location_counts)
-    empty!(tracked_exprs)
+    empty!(watched_exprs)
     global _num_trace_locations = 0
 end
 
+macro clearallsnaps()
+    :(brandnewsnaps!()) |> esc
+end
 
 clearsnaps(exprstr) = begin
     #find snaps that match key, and remove them from the happysnaps vector
     filter!((st)->st.exprstr == exprstr, happysnaps) #slow
 end
 
-macro clearsnaps()
-    :(brandnewsnaps!()) |> esc
-end
-
 macro clearsnaps(exprs...)
-    :(@initsnaps(exprs)) |> esc
+    res = :()
+    for expr in exprs
+        exprstr = "$expr" #expr as a string
+        res = :($res; clearsnaps(exprstr))
+    end
+    res |> esc
 end
 
-
-set_autotrack(on::Bool) = global autotrack = on
-get_autotrack() = autotrack
-
-"""
-adds a trace entry in happy snaps
-"""
-snap_everyNth(location, N, exprstrs, vals) = begin
-#     @show "-------------" location N exprstrs vals
-    location_counts[location]%N == 0 &&
-        for (exprstr, val) in zip(exprstrs, vals)
-            snap(location, exprstr, val)
-        end
-    location_counts[location] += 1
+macro clearunwatch(exprs...)
+    :(@unwatch exprs; @clearsnaps(exprs)) |> esc
 end
 
-track_exprstr(exprstr) = begin
-    tracked_exprs[exprstr] = true
-end
-
-snap(location, exprstr, val) = push!(happysnaps, TraceItem(location, exprstr, val))
-
-#helpers
-pluck(objarr, sym) = map((obj)->getfield(obj, sym), objarr)
-
-# get snaps
+###############################################################################
+# Trace View/Accessor Functions
+###############################################################################
 snapsat(location) = filter((ti)->ti.location == "$location", happysnaps)
 snapitems(exprstr) = filter((ti)->ti.exprstr == exprstr, happysnaps)
 snapvals(exprstr) = pluck(snapitems(exprstr), :val)
@@ -114,32 +94,71 @@ macro snapitems(expr)
     :(snapitems($exprstr)) |> esc
 end
 
+###############################################################################
+# Watched Expressions / Snapall
+###############################################################################
+set_autowatch(on::Bool) = global autowatch = on
+get_autowatch() = autowatch
+
+watched_exprstrs() = keys(watched_exprs)
+
+watch_exprstr(exprstr) = begin
+    !haskey(watched_exprs, exprstr) && println("adding $exprstr to watched exprs")
+    watched_exprs[exprstr] = true
+end
+
+unwatch_exprstr(exprstr) = begin
+    haskey(watched_exprs, exprstr) && println("removing $exprstr from watched exprs")
+    delete!(watched_exprs, exprstr)
+end
+
+macro watch(exprs...)
+    for expr in exprs
+        exprstr = "$expr" #expr as a string
+        watch_exprstr(exprstr) #called at macro expansion time, not run time
+    end
+    :()
+end
+
+macro unwatch(exprs...)
+    for expr in exprs
+        exprstr = "$expr" #expr as a string
+        unwatch_exprstr(exprstr)
+    end
+    :()
+end
+
+macro unwatchall()
+    empty!(watched_exprs)
+    :()
+end
+
 macro allsnaps()
     :(allsnaps()) |> esc
 end
 
-macro initsnaps(exprs...)
-    res = :()
-    for expr in exprs
-        exprstr = "$expr" #expr as a string
-        track_exprstr(exprstr)
-        res = :($res; clearsnaps($exprstr))
-    end
-    res |> esc
-end
+# macro snapallatNth(location, N)
+#     quote
+#         exprstrs = []
+#         vals=[]
+#         for exprstr in watched_exprstrs()
+#             exprvalfn = eval(parse("()->$exprstr"))
+#             push!(exprstrs, exprstr)
+#             push!(vals, exprvalfn())
+#             runexpr(fullexpr)
+#         end
+#         snap_everyNth($location, $N, exprstrs, vals)
+#         happysnaps
+#     end |> esc
+# end
 
-"""
-Very similar to just calling @snapAtNth in the loop
-"""
 macro snapallatNth(location, N)
     res = :(exprstrs = []; vals=[])
-    for exprstr in keys(tracked_exprs)
+    for exprstr in watched_exprstrs()
         expr = parse(exprstr)
         res = :($res; push!(exprstrs, $exprstr);  push!(vals, $expr);) # @show exprstrs vals)
-        autotrack && track_exprstr(exprstr)
     end
-    res = :($res;snap_everyNth($location, $N, exprstrs, vals); happysnaps)
-    # @show res
+    res = :($res; snap_everyNth($location, $N, exprstrs, vals); happysnaps)
     res |> esc
 end
 
@@ -152,11 +171,30 @@ macro snapallat(location)
     :(@snapallatNth($location, 1)) |> esc
 end
 
+###############################################################################
+# Make regular snaps
+###############################################################################
+"""
+adds a trace entry in happysnaps for each expr in exprstrs with
+corresponding val from vals
+"""
+snap_everyNth(location, N, exprstrs, vals) = begin
+#     @show "-------------" location N exprstrs vals
+    location_counts[location]%N == 0 &&
+        for (exprstr, val) in zip(exprstrs, vals)
+            snap(location, exprstr, val)
+        end
+    location_counts[location] += 1
+end
+
+snap(location, exprstr, val) = push!(happysnaps, TraceItem(location, exprstr, val))
+
 macro snapatNth(location, N, exprs)
     res = :(exprstrs = []; vals=[])
     for expr in exprs
         exprstr = "$expr"
         res = :($res; push!(exprstrs, $exprstr); push!(vals, $expr))
+        autowatch && watch_exprstr(exprstr) #called at macro expansion time, not run time
     end
     res = :($res; snap_everyNth($location, $N, exprstrs, vals))
     res = :($res; happysnaps)
@@ -180,7 +218,7 @@ outputs:
 
 By default the variable/expression will be added to the watch list,
 and logged/snapped on calls to `@snapall` that are parsed/loaded later than
-this call.. To disable this behaviour call RickTracy.set_autotrack(false).
+this call.. To disable this behaviour call RickTracy.set_autowatch(false).
 
 A numbered location string will be added to the trace entry to identify
 the code location. To specify your own location use:
@@ -212,7 +250,7 @@ returns:
 
 By default the variable/expression will be added to the watch list,
 and logged/snapped on calls to `@snapall` that are parsed/loaded later than
-this call.. To disable this behaviour call RickTracy.set_autotrack(false).
+this call.. To disable this behaviour call RickTracy.set_autowatch(false).
 """
 macro snapNth(N, exprs...)
     location = next_global_location() #initialised once each location @snap is called (at compile time)
@@ -241,7 +279,7 @@ also useful try:
 
 By default the variable/expression will be added to the watch list,
 and logged/snapped on calls to `@snapall` that are parsed/loaded later than
-this call.. To disable this behaviour call RickTracy.set_autotrack(false).
+this call.. To disable this behaviour call RickTracy.set_autowatch(false).
 """
 macro snapat(location, exprs...)
     :(@snapatNth($location, 1, $exprs)) |> esc
@@ -269,7 +307,7 @@ outputs:
 
  By default the variable/expression will be added to the watch list,
  and logged/snapped on calls to `@snapall` that are parsed/loaded later than
-this call.. To disable this behaviour call RickTracy.set_autotrack(false).
+this call.. To disable this behaviour call RickTracy.set_autowatch(false).
 """
 macro snapif(condexpr, exprs...)
     location = next_global_location()
@@ -300,11 +338,11 @@ outputs:
 
  By default the variable/expression will be added to the watch list,
  and logged/snapped on calls to `@snapall` that are parsed/loaded later than
- this call.. To disable this behaviour call RickTracy.set_autotrack(false).
+ this call.. To disable this behaviour call RickTracy.set_autowatch(false).
 """
 macro snapifat(condexpr, location, exprs...)
     :(if $condexpr
-            @snapatNth($location, 1, $exprs)
+        @snapatNth($location, 1, $exprs)
     end) |> esc
 end
 
@@ -327,4 +365,14 @@ macro snapln(exprs...)
     :(@snapatNth(string(@__LINE__), 1, $exprs)) |> esc
 end
 
+###############################################################################
+# Helpers
+###############################################################################
+pluck(objarr, sym) = map((obj)->getfield(obj, sym), objarr)
+
+next_global_location() = begin
+    global _num_trace_locations
+    _num_trace_locations += 1
+    "$_num_trace_locations"
+end
 end
