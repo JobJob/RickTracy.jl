@@ -174,7 +174,17 @@ macro snapatNth(location, N, exprs)
     res = :(exprstrs = []; vals=[])
     for expr in exprs
         exprstr = "$expr"
-        res = :($res; push!(exprstrs, $exprstr); push!(vals, $expr))
+        res = quote
+            $res
+            push!(exprstrs, $exprstr)
+            push!(vals,
+                try
+                    $expr
+                catch e
+                    typeof(e) != UndefVarError && throw(e)
+                    :undefined
+                end)
+        end
         autowatch && watch_exprstr(exprstr) #called at macro expansion time, not run time
     end
     res = :($res; snap_everyNth($location, $N, exprstrs, vals))

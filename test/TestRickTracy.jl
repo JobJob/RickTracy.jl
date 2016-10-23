@@ -70,5 +70,12 @@ facts("snapall") do
     @fact (@snapvals bambam) --> Any["3",100,200,300,400,500,600,700,800,900,1000]
 end
 
+facts("undefined is defined as :undefined") do
+    @clearallsnaps
+    @snap barney
+    @fact (@snapvals barney) --> [:undefined]
+    @fact_throws DomainError (@snap throw(DomainError()))
+end
+
 FactCheck.exitstatus()
 end
