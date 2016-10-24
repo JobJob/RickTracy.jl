@@ -1,15 +1,25 @@
 # RickTracy
 *Futuristic* Code Tracing for Julia
 
+## Intro
+This package makes it easy to trace values of your variables (or other expressions) over time.
+
+Example use cases:
+* debugging
+* logging
+* storing values of multiple variables over time, without having to create your own Arrays/Dicts/etc for each variable, e.g. in simulation code
+
 Basic usage:
-    Pkg.clone("https://github.com/JobJob/RickTracy")
+
+    Pkg.clone("https://github.com/JobJob/RickTracy.jl")
     using RickTracy
 
     fred = "flintstone"
     barney = 10
 
+    #take a snapshot of the values of the variables fred and barney
     @snap fred barney
-    @snapvals fred
+    @tracevals fred
 
 outputs:
 
@@ -19,13 +29,12 @@ outputs:
 A numbered location string will be added to the trace entry to identify
 the code location.
 
-    @snapsat 1
+    @tracevalsat 1 barney
 
 outputs:
 
-    2-element Array{RickTracy.TraceItem,1}:
-     RickTracy.TraceItem{String}("1","fred","flintstone",1.47706e9)
-     RickTracy.TraceItem{Int64}("1","barney",10,1.47706e9)
+    1-element Array{Int64,1}:
+    10
 
 To specify your own location use:
 
@@ -33,16 +42,15 @@ To specify your own location use:
     #or try
     @snapat @__LINE__ var1 var2
 
-Sometimes you only want to trace every 12th time, to do so use `@snapNth`
+Sometimes you only want to trace every say 12th time the line is hit, to do so use `@snapNth`
 
-Take a snap/trace of a variable/expression every N times
-the site
-e.g.
+e.g. the following takes a snap/trace of a variable/expression every 2 times
+the tracepoint is hit:
 
     for person in ["wilma", "fred", "betty", "barney"]
         @snapNth 2 person
     end
-    @snapvals person
+    @tracevals person
 
 returns:
 
@@ -57,7 +65,7 @@ for example:
         @snapif i%3 == 0 i
         @snapifat i%4 ==0 i
     end
-    @snapvals i
+    @tracevals i
 
 results in:
 
@@ -67,7 +75,7 @@ results in:
      6
      8
      9
-a subsequent call to `@snapsatvals "loopcity" i` gives:
+a subsequent call to `@tracevalsat "loopcity" i` gives:
 
     2-element Array{Int64,1}:
     4
@@ -93,7 +101,7 @@ a subsequent call to `@snapsatvals "loopcity" i` gives:
         bambam = 100*i
         @snapall
     end
-    @snapvals bambam
+    @tracevals bambam
 
 outputs:
 

@@ -9,15 +9,15 @@ facts("first things first") do
 
     @snap fred barney
 
-    @fact (@snapvals fred) --> ["flintstone"]
-    @fact (@snapvals barney) --> [10]
+    @fact (@tracevals fred) --> ["flintstone"]
+    @fact (@tracevals barney) --> [10]
 end
 
 facts("snap the Nth") do
     for person in ["wilma", "fred", "betty", "barney"]
         @snapNth 2 person
     end
-    @fact (@snapvals person) --> ["wilma", "betty"]
+    @fact (@tracevals person) --> ["wilma", "betty"]
 end
 
 facts("snapat all on the floow") do
@@ -25,12 +25,12 @@ facts("snapat all on the floow") do
     fred = "Savage"
     winnie = 8.5
     @snapat "McKinley" fred winnie
-    snapitems = @snapsat "McKinley"
-    @fact length(snapitems) --> 2
-    @fact snapitems[1].exprstr --> "fred"
-    @fact snapitems[1].val --> "Savage"
-    @fact snapitems[2].exprstr --> "winnie"
-    @fact snapitems[2].val --> 8.5
+    traceitems = @tracesat "McKinley"
+    @fact length(traceitems) --> 2
+    @fact traceitems[1].exprstr --> "fred"
+    @fact traceitems[1].val --> "Savage"
+    @fact traceitems[2].exprstr --> "winnie"
+    @fact traceitems[2].val --> 8.5
 end
 
 facts("snapif") do
@@ -38,7 +38,7 @@ facts("snapif") do
     for i in 1:10
         @snapif i%3 == 0 i
     end
-    @fact (@snapvals i) --> [3,6,9]
+    @fact (@tracevals i) --> [3,6,9]
 end
 
 facts("snapifat") do
@@ -46,8 +46,8 @@ facts("snapifat") do
     for i in 1:10
         @snapifat i%3 == 0 "looptown" i
     end
-    snapitems = @snapsat "looptown"
-    @fact (@snapsatvals "looptown" i) --> [3,6,9]
+    traceitems = @tracesat "looptown"
+    @fact (@tracevalsat "looptown" i) --> [3,6,9]
 end
 
 facts("snapall") do
@@ -66,13 +66,13 @@ facts("snapall") do
         @snapallatNth "second" 1
     end
 
-    @fact (@snapvals bambam) --> Any["3",100,200,300,400,500,600,700,800,900,1000]
+    @fact (@tracevals bambam) --> Any["3",100,200,300,400,500,600,700,800,900,1000]
 end
 
-facts("undefined is defined as :undefined") do
+facts("undefined is defined (as :undefined)") do
     @clearallsnaps
     @snap barney
-    @fact (@snapvals barney) --> [:undefined]
+    @fact (@tracevals barney) --> [:undefined]
     @fact_throws DomainError (@snap throw(DomainError()))
 end
 
@@ -91,7 +91,7 @@ facts("Dicout") do
         bambam = 100*i
         @snapallatNth "second" 1
     end
-    resdic = @snapvalsdict
+    resdic = @tracevalsdict
     @fact (resdic["bambam"]) --> Any["3",100,200,300,400,500,600,700,800,900,1000]
 end
 

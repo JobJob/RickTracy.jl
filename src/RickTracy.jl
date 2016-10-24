@@ -4,8 +4,8 @@ export TraceItem,
 @snap, @snapat, @snapNth, @snapatNth, snap_everyNth, @snapif, @snapifat,
 @watch, @unwatch, @unwatchall, @snapall, @snapallat, @snapallatNth,
 clearsnaps, @clearsnaps, @clearallsnaps, brandnewsnaps!, next_global_location,
-snapsat, @snapsat, snapvals, @snapvals, snapitems, @snapitems,
-snapsatvals, @snapsatvals, @snapvalsdict,
+tracesat, @tracesat, tracevals, @tracevals, traceitems, @traceitems,
+tracevalsat, @tracevalsat, @tracevalsdict,
 allsnaps, @allsnaps, _num_trace_locations, happysnaps
 
 
@@ -67,36 +67,36 @@ end
 ###############################################################################
 # Trace View/Accessor Functions
 ###############################################################################
-snapsat(location) = filter((ti)->ti.location == "$location", happysnaps)
-snapitems(exprstr) = filter((ti)->ti.exprstr == exprstr, happysnaps)
-snapvals(exprstr) = pluck(snapitems(exprstr), :val)
-snapsatvals(location, exprstr) = begin
-    snapitems = filter(happysnaps) do (ti)
+tracesat(location) = filter((ti)->ti.location == "$location", happysnaps)
+traceitems(exprstr) = filter((ti)->ti.exprstr == exprstr, happysnaps)
+tracevals(exprstr) = pluck(traceitems(exprstr), :val)
+tracevalsat(location, exprstr) = begin
+    @show location exprstr
+    traceitems = filter(happysnaps) do (ti)
         ti.exprstr == exprstr && ti.location == location
     end
-    pluck(snapitems, :val)
+    pluck(traceitems, :val)
 end
 allsnaps() = copy(happysnaps)
 
-macro snapsat(location_expr)
+macro tracesat(location_expr)
     locstr = "$location_expr"
-    :(snapsat($locstr)) |> esc
+    :(tracesat($locstr)) |> esc
 end
 
-macro snapsatvals(location_expr, expr)
-    locstr = "$location_expr"
+macro tracevalsat(location_expr, expr)
     exprstr = "$expr"
-    :(snapsatvals($locstr, $exprstr)) |> esc
+    :(tracevalsat(string($location_expr), $exprstr)) |> esc
 end
 
-macro snapvals(expr)
+macro tracevals(expr)
     exprstr = "$expr"
-    :(snapvals($exprstr)) |> esc
+    :(tracevals($exprstr)) |> esc
 end
 
-macro snapitems(expr)
+macro traceitems(expr)
     exprstr = "$expr"
-    :(snapitems($exprstr)) |> esc
+    :(traceitems($exprstr)) |> esc
 end
 
 dicout() = begin
@@ -107,7 +107,7 @@ dicout() = begin
     res
 end
 
-macro snapvalsdict()
+macro tracevalsdict()
     :(RickTracy.dicout())
 end
 
@@ -217,7 +217,7 @@ Take a snap/trace of a variable/expression.
     barney = 10
 
     @snap fred barney
-    @snapvals fred
+    @tracevals fred
 
 outputs:
 
@@ -248,7 +248,7 @@ the tracepoint is passed
     for person in ["wilma", "fred", "betty", "barney"]
         @snapNth 2 person
     end
-    @snapvals person
+    @tracevals person
 
 returns:
 
@@ -274,7 +274,7 @@ String to identify the trace site.
     fred = "flintstone"
     barney = 10
     @snapat "bedrock" fred barney
-    @snapsat "bedrock"
+    @tracesat "bedrock"
 
 outputs:
 
@@ -304,7 +304,7 @@ to true
     for i in 1:10
         @snapif i%3 == 0 i
     end
-    @snapvals i
+    @tracevals i
 
 outputs:
 
@@ -335,7 +335,7 @@ to true, and set location at the location provide
     for i in 1:10
         @snapifat i%3 == 0 "looptown" i
     end
-    @snapsat "looptown"
+    @tracesat "looptown"
 
 outputs:
 
