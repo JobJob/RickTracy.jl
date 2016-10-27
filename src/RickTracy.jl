@@ -1,12 +1,19 @@
 module RickTracy
 
 export TraceItem,
-@snap, @snapat, @snapNth, @snapatNth, snap_everyNth, @snapif, @snapifat,
-@watch, @unwatch, @unwatchall, @snapall, @snapallat, @snapallatNth,
-clearsnaps, @clearsnaps, @clearallsnaps, brandnewsnaps!, next_global_location,
+#standard snaps
+@snap, @snap_everyN_at, storeNthsnapsat,
+#watchall related
+@watch, @unwatch, @unwatchall, @snapall,
+#reset fns
+clearsnaps, @clearsnaps, @clearallsnaps, @resetallsnaps, brandnewsnaps!,
+#view/process traces
 tracesat, @tracesat, tracevals, @tracevals, traceitems, @traceitems,
-tracevalsat, @tracevalsat, @tracevalsdict,
-allsnaps, @allsnaps, _num_trace_locations, happysnaps
+tracevalsat, @tracevalsat, @tracevalsdict, allsnaps, @allsnaps,
+#utilities
+next_global_location, kwargparse,
+#module globals
+_num_trace_locations, trace_kwargspec, happysnaps
 
 
 using DataStructures
@@ -42,8 +49,12 @@ brandnewsnaps!() = begin
     global _num_trace_locations = 0
 end
 
-macro clearallsnaps()
+macro resetallsnaps()
     :(brandnewsnaps!()) |> esc
+end
+
+macro clearallsnaps()
+    :(empty!(happysnaps)) |> esc
 end
 
 clearsnaps(exprstr) = begin
@@ -71,7 +82,6 @@ tracesat(location) = filter((ti)->ti.location == "$location", happysnaps)
 traceitems(exprstr) = filter((ti)->ti.exprstr == exprstr, happysnaps)
 tracevals(exprstr) = pluck(traceitems(exprstr), :val)
 tracevalsat(location, exprstr) = begin
-    @show location exprstr
     traceitems = filter(happysnaps) do (ti)
         ti.exprstr == exprstr && ti.location == location
     end
@@ -79,23 +89,28 @@ tracevalsat(location, exprstr) = begin
 end
 allsnaps() = copy(happysnaps)
 
+macro allsnaps()
+    :(allsnaps()) |> esc
+end
+
 macro tracesat(location_expr)
-    locstr = "$location_expr"
-    :(tracesat($locstr)) |> esc
+    location = string(location_expr)
+    :(tracesat($location)) |> esc
 end
 
 macro tracevalsat(location_expr, expr)
-    exprstr = "$expr"
-    :(tracevalsat(string($location_expr), $exprstr)) |> esc
+    location = string(location_expr)
+    exprstr = string(expr)
+    :(tracevalsat($location, $exprstr)) |> esc
 end
 
 macro tracevals(expr)
-    exprstr = "$expr"
+    exprstr = string(expr)
     :(tracevals($exprstr)) |> esc
 end
 
 macro traceitems(expr)
-    exprstr = "$expr"
+    exprstr = string(expr)
     :(traceitems($exprstr)) |> esc
 end
 
@@ -129,16 +144,14 @@ end
 
 macro watch(exprs...)
     for expr in exprs
-        exprstr = "$expr" #expr as a string
-        watch_exprstr(exprstr) #called at macro expansion time, not run time
+        watch_exprstr(string(expr)) #called at macro expansion time, not run time
     end
     :()
 end
 
 macro unwatch(exprs...)
     for expr in exprs
-        exprstr = "$expr" #expr as a string
-        unwatch_exprstr(exprstr)
+        unwatch_exprstr(string(expr))
     end
     :()
 end
@@ -148,25 +161,11 @@ macro unwatchall()
     :()
 end
 
-macro allsnaps()
-    :(allsnaps()) |> esc
-end
-
-"""
-A little too much like snapatNth for my liking
-"""
-macro snapallatNth(location, N)
-    exprs = map(parse, watched_exprstrs())
-    :(@snapatNth $location $N $exprs) |> esc
-end
-
-macro snapall()
-    location = next_global_location()
-    :(@snapallatNth($location, 1)) |> esc
-end
-
-macro snapallat(location)
-    :(@snapallatNth($location, 1)) |> esc
+macro snapall(kwexprs...)
+    kwargs, extra_exprs = kwargparse(trace_kwargspec, kwexprs)
+    watched_exprs = map(parse, watched_exprstrs())
+    exprs = vcat(watched_exprs, extra_exprs)
+    :(@snap_everyN_at $(kwargs[:location]) $(kwargs[:everyN]) $exprs) |> esc
 end
 
 ###############################################################################
@@ -176,21 +175,21 @@ end
 adds a trace entry in happysnaps for each expr in exprstrs with
 corresponding val from vals
 """
-snap_everyNth(location, N, exprstrs, vals) = begin
-#     @show "-------------" location N exprstrs vals
-    location_counts[location]%N == 0 &&
+storeNthsnapsat(location, everyN, exprstrs, vals) = begin
+    if location_counts[location]%everyN == 0
         for (exprstr, val) in zip(exprstrs, vals)
-            snap(location, exprstr, val)
+            storesnap(location, exprstr, val)
         end
+    end
     location_counts[location] += 1
 end
 
-snap(location, exprstr, val) = push!(happysnaps, TraceItem(location, exprstr, val))
+storesnap(location, exprstr, val) = push!(happysnaps, TraceItem(location, exprstr, val))
 
-macro snapatNth(location, N, exprs)
+macro snap_everyN_at(location, N, exprs)
     res = :(exprstrs = []; vals=[])
     for expr in exprs
-        exprstr = "$expr"
+        exprstr = string(expr)
         res = quote
             $res
             push!(exprstrs, $exprstr)
@@ -204,7 +203,7 @@ macro snapatNth(location, N, exprs)
         end
         autowatch && watch_exprstr(exprstr) #called at macro expansion time, not run time
     end
-    res = :($res; snap_everyNth($location, $N, exprstrs, vals))
+    res = :($res; storeNthsnapsat(string($location), $N, exprstrs, vals))
     res = :($res; happysnaps)
     res |> esc
 end
@@ -231,146 +230,27 @@ this call.. To disable this behaviour call RickTracy.set_autowatch(false).
 A numbered location string will be added to the trace entry to identify
 the code location. To specify your own location use:
 
-    @snapat "decriptive location name" var1 var2
+    @snap loc="decriptive location name" var1 var2
     #or
-    @snapat @__LINE__ var1 var2
-"""
-macro snap(exprs...)
-    location = next_global_location() #initialised once each location @snap is called (at compile time)
-    :(@snapatNth($location, 1, $exprs)) |> esc
-end
+    @snapat location=@__LINE__ var1 var2
 
-"""
-Take a snap/trace of a variable/expression every N times
-the tracepoint is passed
-#example
+# n.b. `location`, `loc`, or just plain `l` are valid
 
     for person in ["wilma", "fred", "betty", "barney"]
-        @snapNth 2 person
+        @snap N=2 person
     end
     @tracevals person
 
-returns:
+    returns:
 
     2-element Array{String,1}:
      "wilma"
      "betty"
 
-By default the variable/expression will be added to the watch list,
-and logged/snapped on calls to `@snapall` that are parsed/loaded later than
-this call.. To disable this behaviour call RickTracy.set_autowatch(false).
 """
-macro snapNth(N, exprs...)
-    location = next_global_location() #initialised once each location @snap is called (at compile time)
-    :(@snapatNth($location, $N, $exprs)) |> esc
-end
-
-"""
-Take a snap/trace of a variable/expression, and provide a location
-String to identify the trace site.
-
-#example
-
-    fred = "flintstone"
-    barney = 10
-    @snapat "bedrock" fred barney
-    @tracesat "bedrock"
-
-outputs:
-
-    TraceItem{String}("bedrock","fred","flintstone",1.47705e9)
-    TraceItem{Int64}("bedrock","barney",10,1.47705e9)
-
-also useful try:
-
-    @snapat @__LINE__ fred barney
-
-By default the variable/expression will be added to the watch list,
-and logged/snapped on calls to `@snapall` that are parsed/loaded later than
-this call.. To disable this behaviour call RickTracy.set_autowatch(false).
-"""
-macro snapat(location, exprs...)
-    :(@snapatNth($location, 1, $exprs)) |> esc
-end
-
-"""
-`snapif(condexpr, exprs...)`
-
-Take a snap/trace of a variable/expression, iff condition evaluates
-to true
-
-#example
-
-    for i in 1:10
-        @snapif i%3 == 0 i
-    end
-    @tracevals i
-
-outputs:
-
-    3-element Array{Int64,1}:
-     3
-     6
-     9
-
- By default the variable/expression will be added to the watch list,
- and logged/snapped on calls to `@snapall` that are parsed/loaded later than
-this call.. To disable this behaviour call RickTracy.set_autowatch(false).
-"""
-macro snapif(condexpr, exprs...)
-    location = next_global_location()
-    :(if $condexpr
-            @snapatNth($location, 1, $exprs)
-    end) |> esc
-end
-
-"""
-`snapifat(condexpr, location, exprs...)`
-
-Take a snap/trace of a variable/expression, iff condition evaluates
-to true, and set location at the location provide
-
-#example
-
-    for i in 1:10
-        @snapifat i%3 == 0 "looptown" i
-    end
-    @tracesat "looptown"
-
-outputs:
-
-    3-element Array{RickTracy.TraceItem,1}:
-     RickTracy.TraceItem{Int64}("looptown","i",3,1.47711e9)
-     RickTracy.TraceItem{Int64}("looptown","i",6,1.47711e9)
-     RickTracy.TraceItem{Int64}("looptown","i",9,1.47711e9)
-
- By default the variable/expression will be added to the watch list,
- and logged/snapped on calls to `@snapall` that are parsed/loaded later than
- this call.. To disable this behaviour call RickTracy.set_autowatch(false).
-"""
-macro snapifat(condexpr, location, exprs...)
-    :(if $condexpr
-        @snapatNth($location, 1, $exprs)
-    end) |> esc
-end
-
-"""
-NOT WORKING YET, if it did work, prob good to just make this the default for @snap
-Waiting on https://github.com/JuliaLang/julia/issues/9577
-
-
-Take a snap/trace of a variable/expression, setting the line
-number as the location
-#example
-
-    fred = "flintstone"
-    barney = 10
-    @snapln fred barney
-
-see `@snap` docs for more details
-"""
-macro snapln(exprs...)
-    :(@snapatNth(string(@__LINE__), 1, $exprs)) |> esc
+macro snap(exprs...)
+    kwargs, exprs = kwargparse(trace_kwargspec, exprs)
+    :(@snap_everyN_at $(kwargs[:location]) $(kwargs[:everyN]) $exprs) |> esc
 end
 
 ###############################################################################
@@ -378,9 +258,56 @@ end
 ###############################################################################
 pluck(objarr, sym) = map((obj)->getfield(obj, sym), objarr)
 
+"""
+Create default auto-incremented numbered location for the tracepoint
+
+n.b. File and line number of call site in macro-expansion isn't possible yet
+Waiting on https://github.com/JuliaLang/julia/issues/9577
+"""
 next_global_location() = begin
     global _num_trace_locations
     _num_trace_locations += 1
-    "$_num_trace_locations"
 end
+
+location_spec = Dict(:aliases=>[:location, :loc, :l],
+                    :convert=>string, :default=>next_global_location)
+
+throttle_spec = Dict(:aliases=>[:everyN, :every, :N],
+                    :convert=>Int, :default=>1)
+
+trace_kwargspec = Dict(:location=>location_spec, :everyN=>throttle_spec)
+
+get_default(spec) = begin
+    !haskey(spec, :default) && return nothing
+    !isempty(methods(spec[:default])) ?
+                        spec[:default]() : spec[:default]
+end
+
+"""
+Parse keyword args passed to your macro
+For each keyword argument you want to handle, provide a argument specification:
+    :aliases ::Vector{Symbol} #possible names used for this variable
+    :default ::Union{Function, Literal} #(optional) default value for the var if keyword not provided
+    :convert ::Function #(optional) - called after arg is parsed to e.g. convert it to a correct type
+kwargspec (key word argument specification) is then a Dict from your symbol names => their argument specification as defined aboive
+Returns: a Dict{Symbol, Any} with values for all keys in your kwargspec
+"""
+kwargparse(kwargspec, exprs) = begin
+    kwargs = Dict{Symbol, Any}(key => get_default(spec) for (key, spec) in kwargspec)
+    args = []
+    for expr in exprs
+        if typeof(expr) == Expr && expr.head == Symbol("=")
+            for (key, spec) in kwargspec
+                expr.args[1] in spec[:aliases] && (kwargs[key] = expr.args[2])
+            end
+        else
+            push!(args, expr)
+        end
+    end
+    for (key, spec) in kwargspec
+        haskey(spec, :convert) && (kwargs[key] = spec[:convert](kwargs[key]))
+    end
+    kwargs, args
+end
+
 end

@@ -15,16 +15,16 @@ end
 
 facts("snap the Nth") do
     for person in ["wilma", "fred", "betty", "barney"]
-        @snapNth 2 person
+        @snap (N=2) person
     end
     @fact (@tracevals person) --> ["wilma", "betty"]
 end
 
 facts("snapat all on the floow") do
-    @clearallsnaps
+    @resetallsnaps
     fred = "Savage"
     winnie = 8.5
-    @snapat "McKinley" fred winnie
+    @snap loc="McKinley" fred winnie
     traceitems = @tracesat "McKinley"
     @fact length(traceitems) --> 2
     @fact traceitems[1].exprstr --> "fred"
@@ -34,65 +34,65 @@ facts("snapat all on the floow") do
 end
 
 facts("snapif") do
-    @clearallsnaps
+    @resetallsnaps
     for i in 1:10
-        @snapif i%3 == 0 i
+        i%3 == 0 && @snap i
     end
     @fact (@tracevals i) --> [3,6,9]
 end
 
 facts("snapifat") do
-    @clearallsnaps
+    @resetallsnaps
     for i in 1:10
-        @snapifat i%3 == 0 "looptown" i
+        i%3 == 0 && @snap loc="looptown" i
     end
     traceitems = @tracesat "looptown"
     @fact (@tracevalsat "looptown" i) --> [3,6,9]
 end
 
 facts("snapall") do
-    @clearallsnaps
+    @resetallsnaps
     @watch fred barney bambam
 
     fred = "1"
     barney = "2"
     bambam = "3"
-    @snapallatNth "first" 1
+    @snapall loc="first" N=1
 
     for i in 1:10
         fred = 2*i
         barney = 10*i
         bambam = 100*i
-        @snapallatNth "second" 1
+        @snapall loc="second" N=2
     end
 
-    @fact (@tracevals bambam) --> Any["3",100,200,300,400,500,600,700,800,900,1000]
+    @fact (@tracevals bambam) --> Any["3",100,300,500,700,900]
 end
 
 facts("undefined is defined (as :undefined)") do
-    @clearallsnaps
+    @resetallsnaps
     @snap barney
     @fact (@tracevals barney) --> [:undefined]
     @fact_throws DomainError (@snap throw(DomainError()))
 end
 
 facts("Dicout") do
-    @clearallsnaps
+    @resetallsnaps
     @watch fred barney bambam
 
     fred = "1"
     barney = "2"
     bambam = "3"
-    @snapallatNth "first" 1
+    @snapall loc="first" N=1
 
     for i in 1:10
         fred = 2*i
         barney = 10*i
         bambam = 100*i
-        @snapallatNth "second" 1
+        @snapall loc="second" N=2
     end
     resdic = @tracevalsdict
-    @fact (resdic["bambam"]) --> Any["3",100,200,300,400,500,600,700,800,900,1000]
+    @fact (resdic["bambam"]) --> Any["3",100,300,500,700,900]
 end
 
 FactCheck.exitstatus()

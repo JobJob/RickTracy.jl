@@ -1,13 +1,13 @@
 # RickTracy
-*Futuristic* Code Tracing for Julia
+Easy code tracing for Julia
 
-## Intro
-This package makes it easy to trace values of your variables (or other expressions) over time.
+### Intro
+This package makes it easy to trace values of your variables (or other expressions) throughout the runtime of our program.
 
 Example use cases:
 * debugging
 * logging
-* storing values of multiple variables over time, without having to create your own Arrays/Dicts/etc for each variable, e.g. in simulation code
+* easily recording the progression of values for all variables of interest, e.g. in simulation code
 
 Basic usage:
 
@@ -19,36 +19,42 @@ Basic usage:
 
     #take a snapshot of the values of the variables fred and barney
     @snap fred barney
+
+    #display the results
     @tracevals fred
 
-outputs:
+returns:
 
     1-element Array{String,1}:
     "flintstone"
 
-A numbered location string will be added to the trace entry to identify
-the code location.
+An auto-incremented numbered location name will be added to the trace entry to identify
+the code location where the trace was made.
 
     @tracevalsat 1 barney
 
-outputs:
+returns:
 
     1-element Array{Int64,1}:
     10
 
 To specify your own location use:
 
-    @snapat "decriptive location name" var1 var2
-    #or try
-    @snapat @__LINE__ var1 var2
+    @snap location="decriptive location name" var1 var2
+    #or
+    @snap loc=@__LINE__ var1 var2
 
-Sometimes you only want to trace every say 12th time the line is hit, to do so use `@snapNth`
+n.b. `loc` and `l` are valid aliases for the `location` keyword.
 
-e.g. the following takes a snap/trace of a variable/expression every 2 times
+Sometimes you only want to trace every say 12th time the line is hit, to do so use `@snap everyN=12` or simply `@snap N=12` (`every` and `N` are valid aliases for  `everyN`)
+
+Example:
+
+The following takes a snap/trace of a variable/expression every 2 times
 the tracepoint is hit:
 
     for person in ["wilma", "fred", "betty", "barney"]
-        @snapNth 2 person
+        @snap N=2 person
     end
     @tracevals person
 
@@ -58,35 +64,46 @@ returns:
      "wilma"
      "betty"
 
-Conditional tracing can be done using the `@snapif` and `@snapifat`
-for example:
+Conditional tracing can be done using the following standard Julia idioms:
 
     for i in 1:10
-        @snapif i%3 == 0 i
-        @snapifat i%4 ==0 i
+        i%3 == 0 && @snap i #snap every third iteration
+        i%4 == 0 || @snap loc=loopcity i #don't snap every 4th
     end
     @tracevals i
 
 results in:
 
-    5-element Array{Int64,1}:
-     3
-     4
-     6
-     8
-     9
-a subsequent call to `@tracevalsat "loopcity" i` gives:
+    11-element Array{Int64,1}:
+    1
+    2
+    3
+    3
+    5
+    6
+    6
+    7
+    9
+    9
+    10
 
-    2-element Array{Int64,1}:
-    4
-    8
+ a subsequent call to `@tracevalsat loopcity i` gives:
 
- By default the variable/expression will be added to the watch list,
- and logged/snapped on calls to `@snapall` that are parsed/loaded later than
- any calls to any of the `@snap...` macros. To disable this behaviour call
- RickTracy.set_autowatch(false).
+     8-element Array{Int64,1}:
+    1
+    2
+    3
+    5
+    6
+    7
+    9
+    10
 
-`@snapall` example:
+### Watch and Snapall
+
+ If you have a number of variables of interest that you want to snap at multiple locations in your code, you can use the `@watch`, `@snapall` to easily take snapshots of their values.
+
+Example:
 
     @watch fred barney bambam
 
@@ -103,7 +120,7 @@ a subsequent call to `@tracevalsat "loopcity" i` gives:
     end
     @tracevals bambam
 
-outputs:
+returns:
 
     11-element Array{Any,1}:
     "3"
@@ -117,3 +134,49 @@ outputs:
     800
     900
     1000
+
+Note that by default `@snap` adds each variable/expression passed to it to the watch list. These variables/expressions will then be logged/snapped on calls to `@snapall` that are below the `@snap` (i.e. are parsed/loaded later than (below) the `@snap` call. You can disable the autowatch behaviour using
+`RickTracy.set_autowatch(false)` somewhere near the top of your code.
+
+Example
+
+    rick = 9001
+    morty = 0
+    @snap rick
+    for i in 1:5
+        morty = i
+        rick += i
+        @snapall
+        @snap morty
+    end
+    @tracevals rick
+
+returns:
+
+    6-element Array{Int64,1}:
+     9001
+     9002
+     9004
+     9007
+     9011
+     9016
+
+Note that `@tracevals morty` returns:
+
+    5-element Array{Int64,1}:
+    1
+    2
+    3
+    4
+    5
+
+i.e. `morty` is only logged with the explicit call to `@snap morty`, not the `@snapall`  (else `@tracevals morty` would return [1,1,2,2,3,3,...]). This is despite the fact that the `@snap morty` call in the first loop iteration precedes the `@snapall` in the second iteration at runtime. The key take away is that `@snapall` only logs expressions `@watch`ed or `@snap`ped above it (compiled before it), since the adding of expressions to the watch list happens at compile/macro-expansion time, not at runtime.
+
+#### Related functions
+`@unwatch expr`: stop watching an expr
+`@unwatchall`: clear the watchlist
+
+###Clearance Clarence
+`@clearsnaps expr`: delete all the snapshots for an expression
+`@clearallsnaps`: delete all the snapshots for all expressions
+`@resetallsnaps`: delete all the snapshots for all expressions, clear all location counters (for everyN qualifiers), remove all watched expressions
