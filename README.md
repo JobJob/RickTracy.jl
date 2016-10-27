@@ -7,7 +7,7 @@ This package makes it easy to trace values of your variables (or other expressio
 Example use cases:
 * debugging
 * logging
-* easily recording the progression of values for all variables of interest, e.g. in simulation code
+* easily recording the progression of values for variables of interest, e.g. in simulation code
 
 Basic usage:
 
@@ -48,7 +48,7 @@ n.b. `loc` and `l` are valid aliases for the `location` keyword.
 
 Sometimes you only want to trace every say 12th time the line is hit, to do so use `@snap everyN=12` or simply `@snap N=12` (`every` and `N` are valid aliases for  `everyN`)
 
-Example:
+#####Example:
 
 The following takes a snap/trace of a variable/expression every 2 times
 the tracepoint is hit:
@@ -99,9 +99,24 @@ results in:
     9
     10
 
+### Accessing your Traces
+
+`@tracevals expr`: returns a vector of values the variable/expression took
+
+`@tracevalsat location expr`: returns a vector of values the variable/expression took at the specified location
+
+`@tracevalsdict`: returns a Dict mapping expressions=>values the variable/expression took at the location specified
+
+`@tracesat location`: A Vector of all the raw TraceItem snaps for the given location
+
+`@traceitems expr`: A Vector of all the raw TraceItem snaps for the given expression
+
+`@allsnaps`: A Vector of all the raw TraceItem snaps for all variables at all locations for you to do with as you please
+
+
 ### Watch and Snapall
 
- If you have a number of variables of interest that you want to snap at multiple locations in your code, you can use the `@watch`, `@snapall` to easily take snapshots of their values.
+ If you have a number of variables of interest that you want to snap at multiple locations in your code, you can use the `@watch`, `@snapall` to easily take snapshots of all their values.
 
 Example:
 
@@ -135,7 +150,7 @@ returns:
     900
     1000
 
-Note that by default `@snap` adds each variable/expression passed to it to the watch list. These variables/expressions will then be logged/snapped on calls to `@snapall` that are below the `@snap` (i.e. are parsed/loaded later than (below) the `@snap` call. You can disable the autowatch behaviour using
+Note that by default `@snap` adds each variable/expression passed to it to the watch list. These variables/expressions will then be logged/snapped on calls to `@snapall` that are below the `@snap` (i.e. are parsed/loaded later than the `@snap` call. You can disable the autowatch behaviour using
 `RickTracy.set_autowatch(false)` somewhere near the top of your code.
 
 Example
@@ -173,10 +188,13 @@ Note that `@tracevals morty` returns:
 i.e. `morty` is only logged with the explicit call to `@snap morty`, not the `@snapall`  (else `@tracevals morty` would return [1,1,2,2,3,3,...]). This is despite the fact that the `@snap morty` call in the first loop iteration precedes the `@snapall` in the second iteration at runtime. The key take away is that `@snapall` only logs expressions `@watch`ed or `@snap`ped above it (compiled before it), since the adding of expressions to the watch list happens at compile/macro-expansion time, not at runtime.
 
 #### Related functions
-`@unwatch expr`: stop watching an expr
+`@unwatch expr`: stop watching an expression
+
 `@unwatchall`: clear the watchlist
 
 ###Clearance Clarence
 `@clearsnaps expr`: delete all the snapshots for an expression
+
 `@clearallsnaps`: delete all the snapshots for all expressions
+
 `@resetallsnaps`: delete all the snapshots for all expressions, clear all location counters (for everyN qualifiers), remove all watched expressions
