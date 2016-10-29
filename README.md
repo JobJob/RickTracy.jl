@@ -1,6 +1,4 @@
 # RickTracy
-Easy code tracing for Julia
-
 ### Intro
 This package makes it easy to trace values of your variables (or other expressions) throughout the runtime of our program.
 
@@ -9,7 +7,7 @@ Example use cases:
 * logging
 * easily recording the progression of values for variables of interest, e.g. in simulation code
 
-Basic usage:
+###Basic usage
 
     Pkg.clone("https://github.com/JobJob/RickTracy.jl")
     using RickTracy
@@ -46,7 +44,7 @@ To specify your own location use:
 
 n.b. `loc` and `l` are valid aliases for the `location` keyword.
 
-Sometimes you only want to trace every say 12th time the line is hit, to do so use `@snap everyN=12` or simply `@snap N=12` (`every` and `N` are valid aliases for  `everyN`)
+Sometimes you only want to trace every, say, 12th time the line is hit, to do so use `@snap everyN=12` or simply `@snap N=12` (`every` and `N` are valid aliases for  `everyN`)
 
 #####Example:
 
@@ -64,28 +62,25 @@ returns:
      "wilma"
      "betty"
 
-Conditional tracing can be done using the following standard Julia idioms:
+Conditional tracing can be done using the `iff` keyword (aliases: `when`, `onlyif`):
 
     for i in 1:10
-        i%3 == 0 && @snap i #snap every third iteration
-        i%4 == 0 || @snap loc=loopcity i #don't snap every 4th
+        #snap every third iteration
+        @snap i iff=(i%3 == 0)
+        #don't snap every 4th iteration, and only if i < 5
+        @snap i loc=loopcity when=i%4 != 0 && i < 5
     end
     @tracevals i
 
 results in:
 
-    11-element Array{Int64,1}:
-    1
-    2
-    3
-    3
-    5
-    6
-    6
-    7
-    9
-    9
-    10
+    6-element Array{Int64,1}:
+     1
+     2
+     3
+     3
+     6
+     9
 
  a subsequent call to `@tracevalsat loopcity i` gives:
 
@@ -111,7 +106,7 @@ results in:
 
 `@traceitems expr`: A Vector of all the raw TraceItem snaps for the given expression
 
-`@allsnaps`: A Vector of all the raw TraceItem snaps for all variables at all locations for you to do with as you please
+`@allsnaps`: A Vector of all the raw TraceItem entries for all variables at all locations for you to do with as you please
 
 
 ### Watch and Snapall

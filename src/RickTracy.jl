@@ -1,20 +1,17 @@
 module RickTracy
 
-export TraceItem,
+export
+#Types
+TraceItem,
 #standard snaps
-@snap, @snap_everyN_at, storeNthsnapsat,
+@snap,
 #watchall related
 @watch, @unwatch, @unwatchall, @snapall,
 #reset fns
-clearsnaps, @clearsnaps, @clearallsnaps, @resetallsnaps, brandnewsnaps!,
+@clearsnaps, @clearallsnaps, @resetallsnaps,
 #view/process traces
-tracesat, @tracesat, tracevals, @tracevals, traceitems, @traceitems,
-tracevalsat, @tracevalsat, @tracevalsdict, allsnaps, @allsnaps,
-#utilities
-next_global_location, kwargparse,
-#module globals
-_num_trace_locations, trace_kwargspec, happysnaps
-
+@tracesat, @tracevals, @traceitems,
+@tracevalsat, @tracevalsdict, @allsnaps
 
 using DataStructures
 
@@ -39,143 +36,13 @@ end
 TraceItem{T}(location, exprstr, val::T) = TraceItem{T}(location, exprstr, val, time())
 
 ###############################################################################
-# Clearance Clarence
-###############################################################################
-
-brandnewsnaps!() = begin
-    empty!(happysnaps)
-    empty!(location_counts)
-    empty!(watched_exprs)
-    global _num_trace_locations = 0
-end
-
-macro resetallsnaps()
-    :(brandnewsnaps!()) |> esc
-end
-
-macro clearallsnaps()
-    :(empty!(happysnaps)) |> esc
-end
-
-clearsnaps(exprstr) = begin
-    #find snaps that match key, and remove them from the happysnaps vector
-    filter!((st)->st.exprstr == exprstr, happysnaps) #slow
-end
-
-macro clearsnaps(exprs...)
-    res = :()
-    for expr in exprs
-        exprstr = "$expr" #expr as a string
-        res = :($res; clearsnaps(exprstr))
-    end
-    res |> esc
-end
-
-macro clearunwatch(exprs...)
-    :(@unwatch exprs; @clearsnaps(exprs)) |> esc
-end
-
-###############################################################################
-# Trace View/Accessor Functions
-###############################################################################
-tracesat(location) = filter((ti)->ti.location == "$location", happysnaps)
-traceitems(exprstr) = filter((ti)->ti.exprstr == exprstr, happysnaps)
-tracevals(exprstr) = pluck(traceitems(exprstr), :val)
-tracevalsat(location, exprstr) = begin
-    traceitems = filter(happysnaps) do (ti)
-        ti.exprstr == exprstr && ti.location == location
-    end
-    pluck(traceitems, :val)
-end
-allsnaps() = copy(happysnaps)
-
-macro allsnaps()
-    :(allsnaps()) |> esc
-end
-
-macro tracesat(location_expr)
-    location = string(location_expr)
-    :(tracesat($location)) |> esc
-end
-
-macro tracevalsat(location_expr, expr)
-    location = string(location_expr)
-    exprstr = string(expr)
-    :(tracevalsat($location, $exprstr)) |> esc
-end
-
-macro tracevals(expr)
-    exprstr = string(expr)
-    :(tracevals($exprstr)) |> esc
-end
-
-macro traceitems(expr)
-    exprstr = string(expr)
-    :(traceitems($exprstr)) |> esc
-end
-
-dicout() = begin
-    res = DefaultDict(String, Vector{Any}, Vector{Any})
-    for si in happysnaps
-        push!(res[si.exprstr], si.val)
-    end
-    res
-end
-
-macro tracevalsdict()
-    :(RickTracy.dicout())
-end
-
-###############################################################################
-# Watched Expressions / Snapall
-###############################################################################
-set_autowatch(on::Bool) = global autowatch = on
-get_autowatch() = autowatch
-
-watched_exprstrs() = keys(watched_exprs)
-
-watch_exprstr(exprstr) = begin
-    watched_exprs[exprstr] = true
-end
-
-unwatch_exprstr(exprstr) = begin
-    delete!(watched_exprs, exprstr)
-end
-
-macro watch(exprs...)
-    for expr in exprs
-        watch_exprstr(string(expr)) #called at macro expansion time, not run time
-    end
-    :()
-end
-
-macro unwatch(exprs...)
-    for expr in exprs
-        unwatch_exprstr(string(expr))
-    end
-    :()
-end
-
-macro unwatchall()
-    empty!(watched_exprs)
-    :()
-end
-
-macro snapall(kwexprs...)
-    kwargs, extra_exprs = kwargparse(trace_kwargspec, kwexprs)
-    watched_exprs = map(parse, watched_exprstrs())
-    exprs = vcat(watched_exprs, extra_exprs)
-    :(@snap_everyN_at $(kwargs[:location]) $(kwargs[:everyN]) $exprs) |> esc
-end
-
-###############################################################################
 # Make regular snaps
 ###############################################################################
 """
 adds a trace entry in happysnaps for each expr in exprstrs with
 corresponding val from vals
 """
-storeNthsnapsat(location, everyN, exprstrs, vals) = begin
+storesnaps(location, everyN, exprstrs, vals) = begin
     if location_counts[location]%everyN == 0
         for (exprstr, val) in zip(exprstrs, vals)
             storesnap(location, exprstr, val)
@@ -186,14 +53,14 @@ end
 
 storesnap(location, exprstr, val) = push!(happysnaps, TraceItem(location, exprstr, val))
 
-macro snap_everyN_at(location, N, exprs)
-    res = :(exprstrs = []; vals=[])
+macro snapexprs(location, N, exprs)
+    res = :(_rtexprstrs = []; _rtvals=[])
     for expr in exprs
         exprstr = string(expr)
         res = quote
             $res
-            push!(exprstrs, $exprstr)
-            push!(vals,
+            push!(_rtexprstrs, $exprstr)
+            push!(_rtvals,
                 try
                     $expr
                 catch e
@@ -203,8 +70,8 @@ macro snap_everyN_at(location, N, exprs)
         end
         autowatch && watch_exprstr(exprstr) #called at macro expansion time, not run time
     end
-    res = :($res; storeNthsnapsat(string($location), $N, exprstrs, vals))
-    res = :($res; happysnaps)
+    res = :($res; RickTracy.storesnaps($location, $N, _rtexprstrs, _rtvals))
+    res = :($res; RickTracy.happysnaps)
     res |> esc
 end
 
@@ -250,7 +117,147 @@ the code location. To specify your own location use:
 """
 macro snap(exprs...)
     kwargs, exprs = kwargparse(trace_kwargspec, exprs)
-    :(@snap_everyN_at $(kwargs[:location]) $(kwargs[:everyN]) $exprs) |> esc
+    condition = kwargs[:iff]
+    quote
+        if $condition
+            @RickTracy.snapexprs $(kwargs[:location]) $(kwargs[:everyN]) $exprs
+        end
+    end |> esc
+end
+
+###############################################################################
+# Watched Expressions / Snapall
+###############################################################################
+set_autowatch(on::Bool) = global autowatch = on
+get_autowatch() = autowatch
+
+watched_exprstrs() = keys(watched_exprs)
+
+watch_exprstr(exprstr) = begin
+    watched_exprs[exprstr] = true
+end
+
+unwatch_exprstr(exprstr) = begin
+    delete!(watched_exprs, exprstr)
+end
+
+macro watch(exprs...)
+    for expr in exprs
+        watch_exprstr(string(expr)) #called at macro expansion time, not run time
+    end
+    :()
+end
+
+macro unwatch(exprs...)
+    for expr in exprs
+        unwatch_exprstr(string(expr))
+    end
+    :()
+end
+
+macro unwatchall()
+    empty!(watched_exprs)
+    :()
+end
+
+macro snapall(kwexprs...)
+    kwargs, extra_exprs = kwargparse(trace_kwargspec, kwexprs)
+    watched_exprs = map(parse, watched_exprstrs())
+    exprs = vcat(watched_exprs, extra_exprs)
+    condition = kwargs[:iff]
+    quote
+        if $condition
+            @RickTracy.snapexprs $(kwargs[:location]) $(kwargs[:everyN]) $exprs
+        end
+    end |> esc
+end
+
+###############################################################################
+# Clearance Clarence
+###############################################################################
+
+brandnewsnaps!() = begin
+    empty!(happysnaps)
+    empty!(location_counts)
+    empty!(watched_exprs)
+    global _num_trace_locations = 0
+end
+
+macro resetallsnaps()
+    :(RickTracy.brandnewsnaps!()) |> esc
+end
+
+macro clearallsnaps()
+    :(empty!(RickTracy.happysnaps)) |> esc
+end
+
+clearsnaps(exprstr) = begin
+    #find snaps that match key, and remove them from the happysnaps vector
+    filter!((st)->st.exprstr == exprstr, happysnaps) #slow
+end
+
+macro clearsnaps(exprs...)
+    res = :()
+    for expr in exprs
+        exprstr = "$expr" #expr as a string
+        res = :($res; RickTracy.clearsnaps(exprstr))
+    end
+    res |> esc
+end
+
+macro clearunwatch(exprs...)
+    :(@unwatch exprs; @clearsnaps(exprs)) |> esc
+end
+
+###############################################################################
+# Trace View/Accessor Functions
+###############################################################################
+tracesat(location) = filter((ti)->ti.location == "$location", happysnaps)
+traceitems(exprstr) = filter((ti)->ti.exprstr == exprstr, happysnaps)
+tracevals(exprstr) = pluck(traceitems(exprstr), :val)
+tracevalsat(location, exprstr) = begin
+    traceitems = filter(happysnaps) do (ti)
+        ti.exprstr == exprstr && ti.location == location
+    end
+    pluck(traceitems, :val)
+end
+allsnaps() = copy(happysnaps)
+
+macro allsnaps()
+    :(RickTracy.allsnaps()) |> esc
+end
+
+macro tracesat(location_expr)
+    location = string(location_expr)
+    :(RickTracy.tracesat($location)) |> esc
+end
+
+macro tracevalsat(location_expr, expr)
+    location = string(location_expr)
+    exprstr = string(expr)
+    :(RickTracy.tracevalsat($location, $exprstr)) |> esc
+end
+
+macro tracevals(expr)
+    exprstr = string(expr)
+    :(RickTracy.tracevals($exprstr)) |> esc
+end
+
+macro traceitems(expr)
+    exprstr = string(expr)
+    :(RickTracy.traceitems($exprstr)) |> esc
+end
+
+dicout() = begin
+    res = DefaultDict(String, Vector{Any}, Vector{Any})
+    for si in happysnaps
+        push!(res[si.exprstr], si.val)
+    end
+    res
+end
+
+macro tracevalsdict()
+    :(RickTracy.dicout())
 end
 
 ###############################################################################
@@ -275,8 +282,16 @@ location_spec = Dict(:aliases=>[:location, :loc, :l],
 throttle_spec = Dict(:aliases=>[:everyN, :every, :N],
                     :convert=>Int, :default=>1)
 
-trace_kwargspec = Dict(:location=>location_spec, :everyN=>throttle_spec)
+if_spec = Dict(:aliases=>[:iff, :when, :onlyif], :default=>true)
 
+
+trace_kwargspec = Dict(:location=>location_spec,
+                        :everyN=>throttle_spec,
+                        :iff=>if_spec)
+
+"""
+spec[:default] can be a value or a nullary function that when called returns the default
+"""
 get_default(spec) = begin
     !haskey(spec, :default) && return nothing
     !isempty(methods(spec[:default])) ?
@@ -298,7 +313,13 @@ kwargparse(kwargspec, exprs) = begin
     for expr in exprs
         if typeof(expr) == Expr && expr.head == Symbol("=")
             for (key, spec) in kwargspec
-                expr.args[1] in spec[:aliases] && (kwargs[key] = expr.args[2])
+                if expr.args[1] in spec[:aliases]
+                    if haskey(spec, :accumulate) && spec[:accumulate]
+                        push!(kwargs[key], expr.args[2])
+                    else
+                        kwargs[key] = expr.args[2]
+                    end
+                end
             end
         else
             push!(args, expr)

@@ -1,7 +1,16 @@
-module TestRickTracy
-
 using FactCheck
 using RickTracy
+
+facts("snapifat") do
+    @resetallsnaps
+    for i in 1:10
+        @snap loc="looptown" iff= i%3 == 0 && i != 6 i
+        i%3 == 0 || @snap loc="loopcity" i
+    end
+    traceitems = @tracesat "looptown"
+    @fact (@tracevalsat "looptown" i) --> [3,9]
+    @fact (@tracevalsat "loopcity" i) --> [1,2,4,5,7,8,10]
+end
 
 facts("first things first") do
     fred = "flintstone"
@@ -39,15 +48,6 @@ facts("snapif") do
         i%3 == 0 && @snap i
     end
     @fact (@tracevals i) --> [3,6,9]
-end
-
-facts("snapifat") do
-    @resetallsnaps
-    for i in 1:10
-        i%3 == 0 && @snap loc="looptown" i
-    end
-    traceitems = @tracesat "looptown"
-    @fact (@tracevalsat "looptown" i) --> [3,6,9]
 end
 
 facts("snapall") do
@@ -96,4 +96,3 @@ facts("Dicout") do
 end
 
 FactCheck.exitstatus()
-end
