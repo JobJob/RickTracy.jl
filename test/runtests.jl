@@ -76,7 +76,7 @@ facts("undefined is defined (as :undefined)") do
     @fact_throws DomainError (@snap throw(DomainError()))
 end
 
-facts("Dicout") do
+facts("snapsdic") do
     @resetallsnaps
     @watch fred barney bambam
 
@@ -91,11 +91,11 @@ facts("Dicout") do
         bambam = 100*i
         @snapall loc="second" N=5
     end
-    @fact (@tracevalsdict) --> Dict("fred"=>Any["1",2,12],"barney"=>Any["2",10,60],"bambam"=>Any["3",100,600])
-    @fact (@tracevalsdict loc=second) --> Dict("fred"=>[2,12], "barney"=>[10,60],
+    @fact (@snapsdic) --> Dict("fred"=>Any["1",2,12],"barney"=>Any["2",10,60],"bambam"=>Any["3",100,600])
+    @fact (@snapsdic loc=second) --> Dict("fred"=>[2,12], "barney"=>[10,60],
                                             "bambam"=>[100,600])
-    @fact (@tracevalsdict loc=second bambam) --> Dict("bambam"=>[100,600])
-    @fact (@tracevalsdict barney) --> Dict("barney"=>[10,60])
+    @fact (@snapsdic loc=second bambam) --> Dict("bambam"=>[100,600])
+    @fact (@snapsdic barney) --> Dict("barney"=>["2",10,60])
 end
 
 FactCheck.exitstatus()

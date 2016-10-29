@@ -98,7 +98,7 @@ results in:
 
 `@tracevals (loc=some_location) expr`: returns a vector of values the variable/expression took (optionally: at the specified location)
 
-`@tracevalsdict (loc=a_location)`: returns a Dict mapping expressions=>values the variable/expression took (optionally: at the location specified)
+`@snapsdic (loc=a_location)`: returns a Dict mapping expressions=>values the variable/expression took (optionally: at the location specified)
 
 `@traceitems (loc=any_location) expr`: A Vector of all the raw `TraceItem `snaps for the given expression (optionally: at the specified location).
 

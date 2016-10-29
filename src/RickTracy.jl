@@ -10,7 +10,7 @@ TraceItem,
 #reset fns
 @clearsnaps, @clearallsnaps, @resetallsnaps,
 #view/process traces
-@tracevals, @traceitems, @tracevalsdict
+@tracevals, @traceitems, @snapsdic
 
 using DataStructures
 
@@ -204,7 +204,7 @@ macro traceitems(exprs...)
     :(RickTracy.traceitems($query))
 end
 
-macro tracevalsdict(exprs...)
+macro snapsdic(exprs...)
     query = getquery(exprs)
     :(RickTracy.dicout(RickTracy.traceitems($query)))
 end
