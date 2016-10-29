@@ -10,8 +10,7 @@ TraceItem,
 #reset fns
 @clearsnaps, @clearallsnaps, @resetallsnaps,
 #view/process traces
-@tracesat, @tracevals, @traceitems,
-@tracevalsat, @tracevalsdict, @allsnaps
+@tracevals, @traceitems, @tracevalsdict
 
 using DataStructures
 
@@ -116,7 +115,7 @@ the code location. To specify your own location use:
 
 """
 macro snap(exprs...)
-    kwargs, exprs = kwargparse(trace_kwargspec, exprs)
+    kwargs, exprs, arginfo = kwargparse(trace_kwargspec, exprs)
     condition = kwargs[:iff]
     quote
         if $condition
@@ -161,7 +160,7 @@ macro unwatchall()
 end
 
 macro snapall(kwexprs...)
-    kwargs, extra_exprs = kwargparse(trace_kwargspec, kwexprs)
+    kwargs, extra_exprs, arginfo = kwargparse(trace_kwargspec, kwexprs)
     watched_exprs = map(parse, watched_exprstrs())
     exprs = vcat(watched_exprs, extra_exprs)
     condition = kwargs[:iff]
@@ -171,6 +170,53 @@ macro snapall(kwexprs...)
         end
     end |> esc
 end
+
+###############################################################################
+# Trace View/Accessor Functions
+###############################################################################
+"""
+Get all TraceItems from `snaps` that match the `query`
+"""
+traceitems(query, snaps=happysnaps) = filterquery(query, snaps)
+tracevals(query, snaps=happysnaps) = begin
+    pluck(traceitems(query, snaps), :val)
+end
+
+traceitems() = happysnaps
+
+function getquery(exprs)
+    kwargs, exprs, arginfo = kwargparse(trace_kwargspec, exprs)
+    #create a query based on the kw args set
+    query = filter(kwargs) do key,val
+        arginfo[key][:provided]
+    end
+    !isempty(exprs) && (query[:exprstr] = exprs[1] |> string)
+    query
+end
+
+macro tracevals(exprs...)
+    query = getquery(exprs)
+    :(RickTracy.tracevals($query))
+end
+
+macro traceitems(exprs...)
+    query = getquery(exprs)
+    :(RickTracy.traceitems($query))
+end
+
+macro tracevalsdict(exprs...)
+    query = getquery(exprs)
+    :(RickTracy.dicout(RickTracy.traceitems($query)))
+end
+
+dicout(snaps) = begin
+    res = DefaultDict(String, Vector{Any}, Vector{Any})
+    for si in snaps
+        push!(res[si.exprstr], si.val)
+    end
+    res
+end
+
 
 ###############################################################################
 # Clearance Clarence
@@ -210,60 +256,13 @@ macro clearunwatch(exprs...)
 end
 
 ###############################################################################
-# Trace View/Accessor Functions
-###############################################################################
-tracesat(location) = filter((ti)->ti.location == "$location", happysnaps)
-traceitems(exprstr) = filter((ti)->ti.exprstr == exprstr, happysnaps)
-tracevals(exprstr) = pluck(traceitems(exprstr), :val)
-tracevalsat(location, exprstr) = begin
-    traceitems = filter(happysnaps) do (ti)
-        ti.exprstr == exprstr && ti.location == location
-    end
-    pluck(traceitems, :val)
-end
-allsnaps() = copy(happysnaps)
-
-macro allsnaps()
-    :(RickTracy.allsnaps()) |> esc
-end
-
-macro tracesat(location_expr)
-    location = string(location_expr)
-    :(RickTracy.tracesat($location)) |> esc
-end
-
-macro tracevalsat(location_expr, expr)
-    location = string(location_expr)
-    exprstr = string(expr)
-    :(RickTracy.tracevalsat($location, $exprstr)) |> esc
-end
-
-macro tracevals(expr)
-    exprstr = string(expr)
-    :(RickTracy.tracevals($exprstr)) |> esc
-end
-
-macro traceitems(expr)
-    exprstr = string(expr)
-    :(RickTracy.traceitems($exprstr)) |> esc
-end
-
-dicout() = begin
-    res = DefaultDict(String, Vector{Any}, Vector{Any})
-    for si in happysnaps
-        push!(res[si.exprstr], si.val)
-    end
-    res
-end
-
-macro tracevalsdict()
-    :(RickTracy.dicout())
-end
-
-###############################################################################
 # Helpers
 ###############################################################################
 pluck(objarr, sym) = map((obj)->getfield(obj, sym), objarr)
+
+Base.ismatch{T<:Any}(query::Dict{Symbol, T}, obj) = all(getfield(obj, fld) == val for (fld,val) in query)
+
+filterquery{T<:Any}(query::Dict{Symbol, T}, collection::AbstractArray) = filter(collection) do obj ismatch(query, obj) end
 
 """
 Create default auto-incremented numbered location for the tracepoint
@@ -309,11 +308,13 @@ Returns: a Dict{Symbol, Any} with values for all keys in your kwargspec
 """
 kwargparse(kwargspec, exprs) = begin
     kwargs = Dict{Symbol, Any}(key => get_default(spec) for (key, spec) in kwargspec)
+    arginfo = Dict{Symbol, Any}(key => arginfo_default() for (key, spec) in kwargspec)
     args = []
     for expr in exprs
         if typeof(expr) == Expr && expr.head == Symbol("=")
             for (key, spec) in kwargspec
                 if expr.args[1] in spec[:aliases]
+                    arginfo[key][:provided] = true
                     if haskey(spec, :accumulate) && spec[:accumulate]
                         push!(kwargs[key], expr.args[2])
                     else
@@ -328,7 +329,9 @@ kwargparse(kwargspec, exprs) = begin
     for (key, spec) in kwargspec
         haskey(spec, :convert) && (kwargs[key] = spec[:convert](kwargs[key]))
     end
-    kwargs, args
+    kwargs, args, arginfo
 end
+
+arginfo_default() = Dict(:provided=>false)
 
 end

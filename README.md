@@ -26,7 +26,7 @@ returns:
     1-element Array{String,1}:
     "flintstone"
 
-An auto-incremented numbered location name will be added to the trace entry to identify
+A numbered location name will be automatically added to the trace entry to identify
 the code location where the trace was made.
 
     @tracevalsat 1 barney
@@ -96,18 +96,20 @@ results in:
 
 ### Accessing your Traces
 
-`@tracevals expr`: returns a vector of values the variable/expression took
+`@tracevals (loc=some_location) expr`: returns a vector of values the variable/expression took (optionally: at the specified location)
 
-`@tracevalsat location expr`: returns a vector of values the variable/expression took at the specified location
+`@tracevalsdict (loc=a_location)`: returns a Dict mapping expressions=>values the variable/expression took (optionally: at the location specified)
 
-`@tracevalsdict`: returns a Dict mapping expressions=>values the variable/expression took at the location specified
+`@traceitems (loc=any_location) expr`: A Vector of all the raw `TraceItem `snaps for the given expression (optionally: at the specified location).
 
-`@tracesat location`: A Vector of all the raw TraceItem snaps for the given location
+Here's the definition of the `TraceItem` type:
 
-`@traceitems expr`: A Vector of all the raw TraceItem snaps for the given expression
-
-`@allsnaps`: A Vector of all the raw TraceItem entries for all variables at all locations for you to do with as you please
-
+    type TraceItem{T}
+        location::String
+        exprstr::String
+        val::T
+        ts::Float64 #time stamp
+    end
 
 ### Watch and Snapall
 

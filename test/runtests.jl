@@ -1,17 +1,6 @@
 using FactCheck
 using RickTracy
 
-facts("snapifat") do
-    @resetallsnaps
-    for i in 1:10
-        @snap loc="looptown" iff= i%3 == 0 && i != 6 i
-        i%3 == 0 || @snap loc="loopcity" i
-    end
-    traceitems = @tracesat "looptown"
-    @fact (@tracevalsat "looptown" i) --> [3,9]
-    @fact (@tracevalsat "loopcity" i) --> [1,2,4,5,7,8,10]
-end
-
 facts("first things first") do
     fred = "flintstone"
     barney = 10
@@ -34,12 +23,23 @@ facts("snapat all on the floow") do
     fred = "Savage"
     winnie = 8.5
     @snap loc="McKinley" fred winnie
-    traceitems = @tracesat "McKinley"
+    traceitems = @traceitems loc="McKinley"
     @fact length(traceitems) --> 2
     @fact traceitems[1].exprstr --> "fred"
     @fact traceitems[1].val --> "Savage"
     @fact traceitems[2].exprstr --> "winnie"
     @fact traceitems[2].val --> 8.5
+end
+
+facts("snapifat") do
+    @resetallsnaps
+    for i in 1:10
+        @snap loc="looptown" iff= i%3 == 0 && i != 6 i
+        i%3 == 0 || @snap loc="loopcity" i
+    end
+    traceitems = @traceitems loc="looptown"
+    @fact (@tracevals loc="looptown" i) --> [3,9]
+    @fact (@tracevals loc="loopcity" i) --> [1,2,4,5,7,8,10]
 end
 
 facts("snapif") do
@@ -89,10 +89,13 @@ facts("Dicout") do
         fred = 2*i
         barney = 10*i
         bambam = 100*i
-        @snapall loc="second" N=2
+        @snapall loc="second" N=5
     end
-    resdic = @tracevalsdict
-    @fact (resdic["bambam"]) --> Any["3",100,300,500,700,900]
+    @fact (@tracevalsdict) --> Dict("fred"=>Any["1",2,12],"barney"=>Any["2",10,60],"bambam"=>Any["3",100,600])
+    @fact (@tracevalsdict loc=second) --> Dict("fred"=>[2,12], "barney"=>[10,60],
+                                            "bambam"=>[100,600])
+    @fact (@tracevalsdict loc=second bambam) --> Dict("bambam"=>[100,600])
+    @fact (@tracevalsdict barney) --> Dict("barney"=>[10,60])
 end
 
 FactCheck.exitstatus()
