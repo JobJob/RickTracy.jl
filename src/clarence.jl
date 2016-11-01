@@ -4,10 +4,10 @@
 export @clearsnaps, @clearallsnaps, @resetallsnaps
 
 brandnewsnaps!() = begin
+    global _num_trace_locations = 0
     empty!(happysnaps)
     empty!(location_counts)
     empty!(watched_exprs)
-    global _num_trace_locations = 0
 end
 
 macro resetallsnaps()

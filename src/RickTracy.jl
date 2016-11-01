@@ -17,4 +17,11 @@ include("traceviews.jl")
 include("clarence.jl")
 include("utils.jl")
 
+#=
+1) http://julialang.org/blog/2016/10/StructuredQueries https://davidagold.github.io/StructuredQueries.jl/latest/man/guide.html
+2) http://www.david-anthoff.com/Query.jl/stable/
+3) https://github.com/FugroRoames/TypedTables.jl
+4) https://github.com/JuliaComputing/IndexedTables.jl
+=#
+
 end

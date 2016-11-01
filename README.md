@@ -82,17 +82,12 @@ results in:
      6
      9
 
- a subsequent call to `@tracevalsat loopcity i` gives:
+ a subsequent call to `@tracevals loc=loopcity i` gives:
 
-     8-element Array{Int64,1}:
+     3-element Array{Int64,1}:
     1
     2
     3
-    5
-    6
-    7
-    9
-    10
 
 ### Accessing your Traces
 
@@ -113,7 +108,7 @@ Here's the definition of the `TraceItem` type:
 
 ### Watch and Snapall
 
- If you have a number of variables of interest that you want to snap at multiple locations in your code, you can use the `@watch`, `@snapall` to easily take snapshots of all their values.
+ If you have a number of variables of interest that you want to snap at multiple locations in your code, you can use the combination of `@watch`, `@snapall` to easily take snapshots of all their values.
 
 Example:
 
@@ -125,9 +120,9 @@ Example:
     @snapall
 
     for i in 1:10
-        fred = 2*i
-        barney = 10*i
-        bambam = 100*i
+        fred = 2i
+        barney = 10i
+        bambam = 100i
         @snapall
     end
     @tracevals bambam
@@ -147,7 +142,7 @@ returns:
     900
     1000
 
-Note that by default `@snap` adds each variable/expression passed to it to the watch list. These variables/expressions will then be logged/snapped on calls to `@snapall` that are below the `@snap` (i.e. are parsed/loaded later than the `@snap` call. You can disable the autowatch behaviour using
+Note that by default `@snap` adds each variable/expression passed to it to the watch list. These variables/expressions will then be logged/snapped on calls to `@snapall` that are below the `@snap` (i.e. are parsed/loaded later than the `@snap` call). You can disable the autowatch behaviour with
 `RickTracy.set_autowatch(false)` somewhere near the top of your code.
 
 Example
