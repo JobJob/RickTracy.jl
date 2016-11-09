@@ -1,15 +1,62 @@
 ###############################################################################
 # Trace View/Accessor Functions
 ###############################################################################
-export @tracevals, @traceitems, @snapsdic
+using DataFrames
+
+export @tracevals, @traceitems, @tracevalsdic, @tracesdf, @tracesdic,
+@plotexprvals
 
 """
-Get all TraceItems from `snaps` that match the `query`
+`tracevals(query, snaps=happysnaps)`
+Get the values of the `snaps` that match `query`
 """
-traceitems(query, snaps=happysnaps) = filterquery(query, snaps)
 tracevals(query, snaps=happysnaps) = begin
     pluck(traceitems(query, snaps), :val)
 end
+
+"""
+`traceitems(query, snaps=happysnaps)`
+Get all TraceItems from `snaps` that match the `query`
+"""
+traceitems(query, snaps=happysnaps) = filterquery(query, snaps)
+
+"""
+`tracevalsdic(query, snaps=happysnaps)`
+Get a Dict{String, Vector{Any}} mapping expressions => a vector of the values
+they held at your tracepoints that match `query`
+"""
+tracevalsdic(query, snaps=happysnaps) = begin
+    res = DefaultDict(String, Vector{Any}, Vector{Any})
+    for si in traceitems(query, snaps)
+        push!(res[si.exprstr], si.val)
+    end
+    res
+end
+
+"""
+`tracesdic(traces=happysnaps)`
+Get a Dict{Symbol, Vector{Any}} mapping attributes of your TraceItems
+(:location, :exprstr, :val, :ts) => the vector of values of that attribute for
+traces that match `query`
+"""
+tracesdic(query, snaps=happysnaps) = begin
+    fulldic = Dict{Symbol, Vector{Any}}()
+    foreach(fieldnames(TraceItem)) do attr
+        fulldic[attr] = pluck(traceitems(query, snaps), attr)
+    end
+    fulldic
+end
+
+"""
+`tracesdf(query, snaps=happysnaps)`
+Get a DataFrame from your traces that match `query`
+"""
+tracesdf(query, snaps=happysnaps) = DataFrame(tracesdic(query, snaps))
+
+"""
+Plot the values your expr string took
+"""
+plotvals(query, snaps=happysnaps) = plot(tracevals(query, snaps))
 
 traceitems() = happysnaps
 
@@ -33,15 +80,22 @@ macro traceitems(exprs...)
     :(RickTracy.traceitems($query))
 end
 
-macro snapsdic(exprs...)
+macro tracevalsdic(exprs...)
     query = getquery(exprs)
-    :(RickTracy.dicout(RickTracy.traceitems($query)))
+    :(RickTracy.tracevalsdic($query))
 end
 
-dicout(snaps) = begin
-    res = DefaultDict(String, Vector{Any}, Vector{Any})
-    for si in snaps
-        push!(res[si.exprstr], si.val)
-    end
-    res
+macro tracesdf(exprs...)
+    query = getquery(exprs)
+    :(RickTracy.tracesdf($query))
+end
+
+macro tracesdic(exprs...)
+    query = getquery(exprs)
+    :(RickTracy.tracesdic($query))
+end
+
+macro plotexprvals(exprs...)
+    query = getquery(exprs)
+    :(RickTracy.plotexprvals($query))
 end

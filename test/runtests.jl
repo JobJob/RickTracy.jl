@@ -76,7 +76,7 @@ facts("undefined is defined (as :undefined)") do
     @fact_throws DomainError (@snap throw(DomainError()))
 end
 
-facts("snapsdic") do
+facts("tracevalsdic") do
     @resetallsnaps
     @watch fred barney bambam
 
@@ -91,11 +91,29 @@ facts("snapsdic") do
         bambam = 100*i
         @snapall loc="second" N=5
     end
-    @fact (@snapsdic) --> Dict("fred"=>Any["1",2,12],"barney"=>Any["2",10,60],"bambam"=>Any["3",100,600])
-    @fact (@snapsdic loc=second) --> Dict("fred"=>[2,12], "barney"=>[10,60],
+    @fact (@tracevalsdic) --> Dict("fred"=>Any["1",2,12],"barney"=>Any["2",10,60],"bambam"=>Any["3",100,600])
+    @fact (@tracevalsdic loc=second) --> Dict("fred"=>[2,12], "barney"=>[10,60],
                                             "bambam"=>[100,600])
-    @fact (@snapsdic loc=second bambam) --> Dict("bambam"=>[100,600])
-    @fact (@snapsdic barney) --> Dict("barney"=>["2",10,60])
+    @fact (@tracevalsdic loc=second bambam) --> Dict("bambam"=>[100,600])
+    @fact (@tracevalsdic barney) --> Dict("barney"=>["2",10,60])
+end
+
+facts("tracesdf & tracesdic") do
+    @resetallsnaps
+    for i in 1:10
+        @snap loc=ok1 i
+        @snap loc=ok2 "dingo$i"
+    end
+    df1 = @tracesdf loc=ok1
+    @fact sort!(names(df1)) --> sort!(fieldnames(TraceItem))
+    @fact size(df1) --> (10, 4)
+
+    df2 = @tracesdf
+    @fact sort!(names(df1)) --> sort!(fieldnames(TraceItem))
+    @fact size(df2) --> (20, 4)
+
+    dicky = @tracesdic i
+    @fact dicky[:val] --> collect(1:10)
 end
 
 FactCheck.exitstatus()

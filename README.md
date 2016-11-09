@@ -67,6 +67,7 @@ Conditional tracing can be done using the `iff` keyword (aliases: `when`, `onlyi
     for i in 1:10
         #snap every third iteration
         @snap i iff=(i%3 == 0)
+        
         #don't snap every 4th iteration, and only if i < 5
         @snap i loc=loopcity when=i%4 != 0 && i < 5
     end
@@ -91,11 +92,22 @@ results in:
 
 ### Accessing your Traces
 
-`@tracevals (loc=some_location) expr`: returns a vector of values the variable/expression took (optionally: at the specified location)
+`@tracevals [loc=some_location] expr`: returns a vector of values the variable/expression took (optionally: at the specified location)
 
-`@snapsdic (loc=a_location)`: returns a Dict mapping expressions=>values the variable/expression took (optionally: at the location specified)
+e.g. using the traces from the example above
+```
+using Plots
+ivals = @tracevals loc=loopcity i
+plot(ivals)
+```
 
-`@traceitems (loc=any_location) expr`: A Vector of all the raw `TraceItem `snaps for the given expression (optionally: at the specified location).
+`@tracevalsdic [loc=a_location]`: returns a Dict mapping expressions=>values the variable/expression took (optionally: at the location specified)
+
+`@tracesdf [loc=any_location] [expr]`: returns a DataFrame with fields `:location`, `:exprstr`, `:val`, `:ts`, with each row holding a snap of one expression (optional: filter by the specified location, and the given expression).
+
+`@tracesdic [loc=any_location] [expr]`: returns a Dict{Symbol, Vector{Any}} with keys `:location`, `:exprstr`, `:val`, `:ts`, with values being a vector of the value for that field for all snaps (optional: filter by the specified location, and the given expression).
+
+`@traceitems [loc=any_location] [expr]`: returns a Vector of all the raw `TraceItem ` snaps (optional: filter by the specified location, and the given expression).
 
 Here's the definition of the `TraceItem` type:
 

@@ -3,8 +3,19 @@
 ###############################################################################
 pluck(objarr, sym) = map((obj)->getfield(obj, sym), objarr)
 
+"""
+`ismatch{T<:Any}(query::Dict{Symbol, T}, obj)`
+Given a query Dict specifying equality queries of the form `fieldname=value`
+returns whether the `obj` is a match for all queries.
+If `query` is empty returns `true`.
+"""
 Base.ismatch{T<:Any}(query::Dict{Symbol, T}, obj) = all(getfield(obj, fld) == val for (fld,val) in query)
 
+"""
+filterquery{T<:Any}(query::Dict{Symbol, T}, collection::AbstractArray)
+Given an iterable of objects, `collection`, returns a new iterable of all
+objects in collection who match `query` as tested by `ismatch(query, obj)`
+"""
 filterquery{T<:Any}(query::Dict{Symbol, T}, collection::AbstractArray) = filter(collection) do obj ismatch(query, obj) end
 
 """
