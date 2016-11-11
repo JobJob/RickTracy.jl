@@ -1,7 +1,7 @@
 ###############################################################################
 # Trace View/Accessor Functions
 ###############################################################################
-using DataFrames
+using DataFrames, Plots
 
 export @tracevals, @traceitems, @tracevalsdic, @tracesdf, @tracesdic,
 @plotexprvals
@@ -56,7 +56,7 @@ tracesdf(query, snaps=happysnaps) = DataFrame(tracesdic(query, snaps))
 """
 Plot the values your expr string took
 """
-plotvals(query, snaps=happysnaps) = plot(tracevals(query, snaps))
+plotexprvals(query, snaps=happysnaps) = plot(tracevals(query, snaps))
 
 traceitems() = happysnaps
 
@@ -70,31 +70,52 @@ function getquery(exprs)
     query
 end
 
+"""
+`@tracevals [loc=some_location] expr`: returns a vector of values the variable/expression took (optional: limit to traces at the specified 
+location)
+"""
 macro tracevals(exprs...)
     query = getquery(exprs)
     :(RickTracy.tracevals($query))
 end
 
+"""
+`@traceitems [loc=any_location] [expr]`: returns a Vector of all the raw `TraceItem ` snaps (optional: filter by the specified location, and the given expression).
+"""
 macro traceitems(exprs...)
     query = getquery(exprs)
     :(RickTracy.traceitems($query))
 end
 
+"""
+`@tracevalsdic [loc=a_location]`: returns a Dict mapping expressions=>values the variable/expression took (optionally: at the location specified)
+"""
 macro tracevalsdic(exprs...)
     query = getquery(exprs)
     :(RickTracy.tracevalsdic($query))
 end
 
+"""
+`@tracesdf [loc=any_location] [expr]`: returns a DataFrame with fields `:location`, `:exprstr`, `:val`, `:ts`, with each row holding a snap of one expression (optional: filter by the specified location, and the given expression).
+"""
 macro tracesdf(exprs...)
     query = getquery(exprs)
     :(RickTracy.tracesdf($query))
 end
 
+"""
+`@tracesdic [loc=any_location] [expr]`: returns a Dict{Symbol, Vector{Any}} with keys `:location`, `:exprstr`, `:val`, `:ts`, with values being a vector of the value for that field for all snaps (optional: filter by the specified location, and the given expression).
+"""
 macro tracesdic(exprs...)
     query = getquery(exprs)
     :(RickTracy.tracesdic($query))
 end
 
+"""
+`@plotexprvals [loc=any_location] [expr]`: Make a plot of all values. N.b.
+will break if any values are non-numeric and probably in lots of other
+cases too. You'll probably want to use the optional filter by the specified location, and the given expression.
+"""
 macro plotexprvals(exprs...)
     query = getquery(exprs)
     :(RickTracy.plotexprvals($query))

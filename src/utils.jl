@@ -21,7 +21,7 @@ filterquery{T<:Any}(query::Dict{Symbol, T}, collection::AbstractArray) = filter(
 """
 Create default auto-incremented numbered location for the tracepoint
 
-n.b. File and line number of call site in macro-expansion isn't possible yet
+n.b. File and line number of call site in macro-expansion isn't possible yet.
 Waiting on https://github.com/JuliaLang/julia/issues/9577
 """
 next_global_location() = begin
