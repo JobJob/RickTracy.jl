@@ -120,7 +120,7 @@ facts("filter multiple expressions") do
     @resetallsnaps
     for i in 1:10
         @snap loc=ok1 i i^2
-        @snap loc=ok2 "$i personal space"
+        @snap loc="I love you bad momo" "$i personal space"
     end
     dfi = @tracesdf i i^2
     df1 = @tracesdf loc=ok1
@@ -137,6 +137,9 @@ facts("filter multiple expressions") do
     dickfor = @tracevalsdic i i^2
     @fact dickfor["i"] --> collect(1:10)
     @fact dickfor[string(:(i^2))] --> collect(1:10) .^2
+
+    oohyeah = @tracevals loc="I love you bad momo"
+    @fact oohyeah[1] --> "1 personal space"
 end
 
 FactCheck.exitstatus()

@@ -56,7 +56,13 @@ tracesdf(query, snaps=happysnaps) = DataFrame(tracesdic(query, snaps))
 """
 Plot the values your expr string took
 """
-plotexprvals(query, snaps=happysnaps) = plot(tracevals(query, snaps))
+plotexprvals(query, snaps=happysnaps) = begin
+    dicsnaps = tracevalsdic(query, snaps)
+    #for some reason transposing a vector of strings throws a depwarn
+    #so we use hcat with '...' instead of collect(keys(dicsnaps))'
+    plot(collect(values(dicsnaps)),
+        label=hcat(keys(dicsnaps)...))
+end
 
 traceitems() = happysnaps
 

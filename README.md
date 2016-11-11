@@ -10,7 +10,7 @@ Example use cases:
 ###Install
 `Pkg.clone("https://github.com/JobJob/RickTracy.jl")`
 
-###Basic usage
+###Example usage
 ```
 using RickTracy
 
@@ -19,15 +19,15 @@ for i in 1:10
     @snap loc=morty "$i personal space"
 end
 
-@plotexprvals i^2
+@plotexprvals i i^2
 ```
-![i^2 graph](/images/i^2 graph.png?raw=true "i^2 graph")
+![i and i^2 graph](/images/plotexprvals i i^2.png?raw=true "i and i^2 graph")
 
-To get the values of all traces at a named location use
+To get the values of all traced expressions at a named location use
 ```
 @tracevals location=morty
 ```
-n.b. `loc` and `l` are valid aliases for the `location` keyword.
+n.b. `loc=morty` or `l=morty` both work in place of `location=morty`
 
 Returns:
 ```
@@ -46,21 +46,19 @@ Returns:
 
 Other ways to specify a trace location name:
 ```
-@snap location="decriptive location name" var1 var2
+@snap location="descriptive location name" var1 var2
 #or
-@snap loc=@__LINE__ var1 var2
+@snap l=@__LINE__ var1 var2 #n.b. @__LINE__ gives the line num in the src file
 ```
-To get all your traces as a DataFrame:
+To get all (or some of) your traces as a DataFrame, use `@tracesdf`, e.g.:
 ```
 @tracesdf
-#or
 @tracesdf loc=morty
-#or
 @tracesdf i i^2
 ```
 
 ###Conditional Tracing
-Sometimes you only want to trace every, say, 12th time the line is hit, to do so use `@snap everyN=12` or simply `@snap N=12` (`every` and `N` are valid aliases for  `everyN`)
+Sometimes you only want to take a snapshot/trace every, say, 12th time the line is hit, to do so use `@snap everyN=12` or simply `@snap N=12` (`every` and `N` are valid aliases for  `everyN`)
 
 #####Example:
 
