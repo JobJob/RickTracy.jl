@@ -61,7 +61,7 @@ plotexprvals(query, snaps=happysnaps) = begin
     #for some reason transposing a vector of strings throws a depwarn
     #so we use hcat with '...' instead of collect(keys(dicsnaps))'
     plot(collect(values(dicsnaps)),
-        label=hcat(keys(dicsnaps)...))
+        label=reshape(keys(dicsnaps), 1, length(dicsnaps)))
 end
 
 traceitems() = happysnaps
