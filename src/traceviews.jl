@@ -66,13 +66,14 @@ function getquery(exprs)
     query = filter(kwargs) do key,val
         arginfo[key][:provided]
     end
-    !isempty(exprs) && (query[:exprstr] = exprs[1] |> string)
+    !isempty(exprs) && (query[:exprstr] = map(string, exprs))
     query
 end
 
 """
-`@tracevals [loc=some_location] expr`: returns a vector of values the variable/expression took (optional: limit to traces at the specified 
-location)
+`@tracevals [loc=some_location] [expr1] [expr2] [expr3] ...`
+returns a vector of all the values that variables/expressions
+took at all tracepoints, optionally limited to a particular tracepoint location or expression(s).
 """
 macro tracevals(exprs...)
     query = getquery(exprs)
@@ -80,7 +81,9 @@ macro tracevals(exprs...)
 end
 
 """
-`@traceitems [loc=any_location] [expr]`: returns a Vector of all the raw `TraceItem ` snaps (optional: filter by the specified location, and the given expression).
+`@traceitems [loc=any_location] [expr1] [expr2] [expr3] ...`
+returns a Vector of all the raw `TraceItem ` snaps, optionally
+limited to a particular tracepoint location or expression(s).
 """
 macro traceitems(exprs...)
     query = getquery(exprs)
@@ -88,7 +91,8 @@ macro traceitems(exprs...)
 end
 
 """
-`@tracevalsdic [loc=a_location]`: returns a Dict mapping expressions=>values the variable/expression took (optionally: at the location specified)
+`@tracevalsdic [loc=a_location] [expr1] [expr2] [expr3] ...`: returns a Dict mapping expressions=>values the variable/expression took, optionally
+limited to a particular tracepoint location or expression(s).
 """
 macro tracevalsdic(exprs...)
     query = getquery(exprs)
@@ -96,7 +100,7 @@ macro tracevalsdic(exprs...)
 end
 
 """
-`@tracesdf [loc=any_location] [expr]`: returns a DataFrame with fields `:location`, `:exprstr`, `:val`, `:ts`, with each row holding a snap of one expression (optional: filter by the specified location, and the given expression).
+`@tracesdf [loc=any_location] [expr1] [expr2] [expr3] ...`: returns a DataFrame with fields `:location`, `:exprstr`, `:val`, `:ts`, with each row holding a snap of one expression, optionally limit to a particular tracepoint location or expression(s).
 """
 macro tracesdf(exprs...)
     query = getquery(exprs)
@@ -104,7 +108,7 @@ macro tracesdf(exprs...)
 end
 
 """
-`@tracesdic [loc=any_location] [expr]`: returns a Dict{Symbol, Vector{Any}} with keys `:location`, `:exprstr`, `:val`, `:ts`, with values being a vector of the value for that field for all snaps (optional: filter by the specified location, and the given expression).
+`@tracesdic [loc=any_location] [expr1] [expr2] [expr3] ...`: returns a Dict{Symbol, Vector{Any}} with keys `:location`, `:exprstr`, `:val`, `:ts`, with values being a vector of the value for that field for all snaps, optionally limited to a particular tracepoint location or expression(s).
 """
 macro tracesdic(exprs...)
     query = getquery(exprs)
@@ -112,9 +116,10 @@ macro tracesdic(exprs...)
 end
 
 """
-`@plotexprvals [loc=any_location] [expr]`: Make a plot of all values. N.b.
-will break if any values are non-numeric and probably in lots of other
-cases too. You'll probably want to use the optional filter by the specified location, and the given expression.
+`@plotexprvals [loc=any_location] [expr1] [expr2] [expr3] ...`: Make a plot of all values that @tracevals would return for the same arguments
+N.b. will break if any values are non-numeric and probably in lots of other
+cases too. You'll probably want to use the optional filter by the
+specified location, and the given expression(s).
 """
 macro plotexprvals(exprs...)
     query = getquery(exprs)

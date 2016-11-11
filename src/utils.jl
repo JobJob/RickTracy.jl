@@ -9,7 +9,11 @@ Given a query Dict specifying equality queries of the form `fieldname=value`
 returns whether the `obj` is a match for all queries.
 If `query` is empty returns `true`.
 """
-Base.ismatch{T<:Any}(query::Dict{Symbol, T}, obj) = all(getfield(obj, fld) == val for (fld,val) in query)
+Base.ismatch{T<:Any}(query::Dict{Symbol, T}, obj) = begin
+    all(getfield(obj, fld) == val ||
+        (fld == :exprstr && getfield(obj, fld) in val)
+        for (fld,val) in query)
+end
 
 """
 filterquery{T<:Any}(query::Dict{Symbol, T}, collection::AbstractArray)

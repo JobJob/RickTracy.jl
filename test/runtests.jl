@@ -116,4 +116,27 @@ facts("tracesdf & tracesdic") do
     @fact dicky[:val] --> collect(1:10)
 end
 
+facts("filter multiple expressions") do
+    @resetallsnaps
+    for i in 1:10
+        @snap loc=ok1 i i^2
+        @snap loc=ok2 "$i personal space"
+    end
+    dfi = @tracesdf i i^2
+    df1 = @tracesdf loc=ok1
+    df1i = @tracesdf loc=ok1 i i^2
+    @fact sort!(names(dfi)) --> sort!(fieldnames(TraceItem))
+    @fact size(dfi) --> (20, 4)
+    @fact dfi --> df1
+    @fact dfi --> df1i
+
+    df2 = @tracesdf
+    @fact sort!(names(df1)) --> sort!(fieldnames(TraceItem))
+    @fact size(df2) --> (30, 4)
+
+    dickfor = @tracevalsdic i i^2
+    @fact dickfor["i"] --> collect(1:10)
+    @fact dickfor[string(:(i^2))] --> collect(1:10) .^2
+end
+
 FactCheck.exitstatus()
