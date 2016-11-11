@@ -16,6 +16,7 @@ using RickTracy
 
 for i in 1:10
     @snap i i^2
+    @snap location=mrmeeseeks i^2 i^3
     @snap loc=morty "$i personal space"
 end
 
