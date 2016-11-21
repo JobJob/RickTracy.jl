@@ -1,8 +1,6 @@
 ###############################################################################
 # Trace View/Accessor Functions
 ###############################################################################
-using DataFrames, Plots
-
 export @tracevals, @traceitems, @tracevalsdic, @tracesdf, @tracesdic,
 @plotexprvals
 
@@ -51,7 +49,10 @@ end
 `tracesdf(query, snaps=happysnaps)`
 Get a DataFrame from your traces that match `query`
 """
-tracesdf(query, snaps=happysnaps) = DataFrame(tracesdic(query, snaps))
+tracesdf(query, snaps=happysnaps) = begin
+    @eval import DataFrames
+    DataFrames.DataFrame(tracesdic(query, snaps))
+end
 
 """
 Plot the values your expr string took
@@ -60,7 +61,8 @@ plotexprvals(query, snaps=happysnaps) = begin
     dicsnaps = tracevalsdic(query, snaps)
     #for some reason transposing a vector of strings throws a depwarn
     #so we use hcat with '...' instead of collect(keys(dicsnaps))'
-    plot(collect(values(dicsnaps)),
+    @eval import Plots
+    Plots.plot(collect(values(dicsnaps)),
         label=reshape(keys(dicsnaps), 1, length(dicsnaps)))
 end
 
