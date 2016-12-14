@@ -8,15 +8,15 @@ adds a trace entry in happysnaps for each expr in exprstrs with
 corresponding val from vals
 """
 storesnaps(location, everyN, exprstrs, vals) = begin
-    if location_counts[location]%everyN == 0
+    if everyN == 1 || location_counts[location]%everyN == 1
         for (exprstr, val) in zip(exprstrs, vals)
-            storesnap(location, exprstr, val)
+            storesnap(location, exprstr, val, round(Int, location_counts[location]/everyN))
         end
     end
     location_counts[location] += 1
 end
 
-storesnap(location, exprstr, val) = push!(happysnaps, TraceItem(location, exprstr, val))
+storesnap(location, exprstr, val, lcount) = push!(happysnaps, TraceItem(location, exprstr, val, lcount))
 
 macro snapexprs(location, N, exprs)
     res = :(_rtexprstrs = []; _rtvals=[])

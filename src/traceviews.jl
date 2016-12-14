@@ -8,7 +8,7 @@ export @tracevals, @traceitems, @tracevalsdic, @tracesdf, @tracesdic,
 `tracevals(query, snaps=happysnaps)`
 Get the values of the `snaps` that match `query`
 """
-tracevals(query, snaps=happysnaps) = begin
+tracevals(query=Dict{Symbol, Any}(), snaps=happysnaps) = begin
     pluck(traceitems(query, snaps), :val)
 end
 
@@ -16,14 +16,14 @@ end
 `traceitems(query, snaps=happysnaps)`
 Get all TraceItems from `snaps` that match the `query`
 """
-traceitems(query, snaps=happysnaps) = filterquery(query, snaps)
+traceitems(query=Dict{Symbol, Any}(), snaps=happysnaps) = filterquery(query, snaps)
 
 """
 `tracevalsdic(query, snaps=happysnaps)`
 Get a Dict{String, Vector{Any}} mapping expressions => a vector of the values
 they held at your tracepoints that match `query`
 """
-tracevalsdic(query, snaps=happysnaps) = begin
+tracevalsdic(query=Dict{Symbol, Any}(), snaps=happysnaps) = begin
     res = DefaultDict(String, Vector{Any}, Vector{Any})
     for si in traceitems(query, snaps)
         push!(res[si.exprstr], si.val)
@@ -37,10 +37,11 @@ Get a Dict{Symbol, Vector{Any}} mapping attributes of your TraceItems
 (:location, :exprstr, :val, :ts) => the vector of values of that attribute for
 traces that match `query`
 """
-tracesdic(query, snaps=happysnaps) = begin
+tracesdic(query=Dict{Symbol, Any}(), snaps=happysnaps) = begin
     fulldic = Dict{Symbol, Vector{Any}}()
+    traces = traceitems(query, snaps)
     foreach(fieldnames(TraceItem)) do attr
-        fulldic[attr] = pluck(traceitems(query, snaps), attr)
+        fulldic[attr] = pluck(traces, attr)
     end
     fulldic
 end
@@ -49,7 +50,7 @@ end
 `tracesdf(query, snaps=happysnaps)`
 Get a DataFrame from your traces that match `query`
 """
-tracesdf(query, snaps=happysnaps) = begin
+tracesdf(query=Dict{Symbol, Any}(), snaps=happysnaps) = begin
     @eval import DataFrames
     DataFrames.DataFrame(tracesdic(query, snaps))
 end
@@ -57,23 +58,17 @@ end
 """
 Plot the values your expr string took
 """
-plotexprvals(query, snaps=happysnaps) = begin
+plotexprvals(query=Dict{Symbol, Any}(), snaps=happysnaps) = begin
     dicsnaps = tracevalsdic(query, snaps)
     #for some reason transposing a vector of strings throws a depwarn
     #so we use hcat with '...' instead of collect(keys(dicsnaps))'
     @eval import Plots
     Plots.plot(collect(values(dicsnaps)),
-        label=reshape(keys(dicsnaps), 1, length(dicsnaps)))
+        label=reshape(collect(keys(dicsnaps)), 1, length(dicsnaps)))
 end
 
-traceitems() = happysnaps
-
 function getquery(exprs)
-    kwargs, exprs, arginfo = kwargparse(trace_kwargspec, exprs)
-    #create a query based on the kw args set
-    query = filter(kwargs) do key,val
-        arginfo[key][:provided]
-    end
+    query, exprs, arginfo = kwargparse(trace_kwargspec, exprs; onlyprovided=true)
     !isempty(exprs) && (query[:exprstr] = map(string, exprs))
     query
 end
@@ -108,7 +103,7 @@ macro tracevalsdic(exprs...)
 end
 
 """
-`@tracesdf [loc=any_location] [expr1] [expr2] [expr3] ...`: returns a DataFrame with fields `:location`, `:exprstr`, `:val`, `:ts`, with each row holding a snap of one expression, optionally limit to a particular tracepoint location or expression(s).
+`@tracesdf [loc=any_location] [expr1] [expr2] [expr3] ...`: returns a DataFrame with fields `:location`, `:exprstr`, `:val`, `:lcount`, `:ts`, with each row holding a snap of one expression, optionally limit to a particular tracepoint location or expression(s).
 """
 macro tracesdf(exprs...)
     query = getquery(exprs)
@@ -116,7 +111,7 @@ macro tracesdf(exprs...)
 end
 
 """
-`@tracesdic [loc=any_location] [expr1] [expr2] [expr3] ...`: returns a Dict{Symbol, Vector{Any}} with keys `:location`, `:exprstr`, `:val`, `:ts`, with values being a vector of the value for that field for all snaps, optionally limited to a particular tracepoint location or expression(s).
+`@tracesdic [loc=any_location] [expr1] [expr2] [expr3] ...`: returns a Dict{Symbol, Vector{Any}} with keys `:location`, `:exprstr`, `:val`, `:lcount`, `:ts`, with values being a vector of the value for that field for all snaps, optionally limited to a particular tracepoint location or expression(s).
 """
 macro tracesdic(exprs...)
     query = getquery(exprs)
