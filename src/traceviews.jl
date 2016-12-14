@@ -2,7 +2,7 @@
 # Trace View/Accessor Functions
 ###############################################################################
 export @tracevals, @traceitems, @tracevalsdic, @tracesdf, @tracesdic,
-@plotexprvals
+@plotvals
 
 """
 `tracevals(query, snaps=happysnaps)`
@@ -58,7 +58,7 @@ end
 """
 Plot the values your expr string took
 """
-plotexprvals(query=Dict{Symbol, Any}(), snaps=happysnaps) = begin
+plotvals(query=Dict{Symbol, Any}(), snaps=happysnaps) = begin
     dicsnaps = tracevalsdic(query, snaps)
     #for some reason transposing a vector of strings throws a depwarn
     #so we use hcat with '...' instead of collect(keys(dicsnaps))'
@@ -119,12 +119,12 @@ macro tracesdic(exprs...)
 end
 
 """
-`@plotexprvals [loc=any_location] [expr1] [expr2] [expr3] ...`: Make a plot of all values that @tracevals would return for the same arguments
+`@plotvals [loc=any_location] [expr1] [expr2] [expr3] ...`: Make a plot of all values that `@tracevals` would return for the same arguments
 N.b. will break if any values are non-numeric and probably in lots of other
 cases too. You'll probably want to use the optional filter by the
 specified location, and the given expression(s).
 """
-macro plotexprvals(exprs...)
+macro plotvals(exprs...)
     query = getquery(exprs)
-    :(RickTracy.plotexprvals($query))
+    :(RickTracy.plotvals($query))
 end

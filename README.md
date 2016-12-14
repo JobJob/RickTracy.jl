@@ -20,9 +20,9 @@ for i in 1:10
     @snap loc=morty "$i personal space"
 end
 
-@plotexprvals i i^2
+@plotvals i i^2
 ```
-![i and i^2 graph](/images/plotexprvals i i^2.png?raw=true "i and i^2 graph")
+![i and i^2 graph](/images/plotvals i i^2.png?raw=true "i and i^2 graph")
 
 To get the values of all traced expressions at a named location use
 ```
@@ -110,7 +110,7 @@ results in:
 N.b. all commands that return your trace results below, can generally be limited to a particular tracepoint location or expression(s), using loc=some_location and the expression(s).
 `@tracevals [loc=some_location] [expr1] [expr2] [expr3] ...`: returns a vector of the values of all traced expressions at all tracepoints.
 
-`@plotexprvals [loc=any_location] [expr1] [expr2] [expr3] ...`: Make a plot of the values of all traced expressions.
+`@plotvals [loc=any_location] [expr1] [expr2] [expr3] ...`: Make a plot of the values of all traced expressions.
 N.b. will break if any values are non-numeric and probably in
 lots of other cases too.
 
