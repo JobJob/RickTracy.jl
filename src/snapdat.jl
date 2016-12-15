@@ -81,7 +81,7 @@ the code location. To specify your own location use:
 
 """
 macro snap(exprs...)
-    kwargs, exprs, arginfo = kwargparse(trace_kwargspec, exprs)
+    kwargs, kwextras, exprs, arginfo = kwargparse(trace_kwargspec, exprs)
     condition = kwargs[:iff]
     quote
         if $condition

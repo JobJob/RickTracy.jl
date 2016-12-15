@@ -10,12 +10,10 @@ returns whether the `obj` is a match for all queries.
 If `query` is empty returns `true`.
 """
 Base.ismatch{T<:Any}(query::Dict{Symbol, T}, obj) = begin
-    res = all((fld != :exprval && getfield(obj, fld) == val) ||
-        (fld == :exprstr && getfield(obj, fld) in val) ||
-        (fld == :exprval &&
-            any(getfield(obj, :exprstr) == xvar && getfield(obj, :val) == xval for (xvar,xval) in val))
-            for (fld,val) in query)
-    res
+    all((getfield(obj, fld) == val) ||
+        (isa(val, AbstractArray) && getfield(obj, fld) in val)
+                for (fld,val) in query)
+
 end
 
 """
@@ -38,10 +36,10 @@ next_global_location() = begin
     _num_trace_locations += 1
 end
 
-function add_exprvals(kwargs, args, arginfo, lv, rv)
-    valarr = get!(kwargs, :exprval, Vector())
-    push!(valarr, string(lv)=>rv)
-    (:exprval,)
+function add_expr_equalities(kwargs, args, arginfo, lv, rv)
+    kwargs[:exprstr] = string(lv)
+    kwargs[:val] = rv
+    (:exprstr, :val)
 end
 
 location_spec = Dict(:aliases=>[:location, :loc, :l],
@@ -55,14 +53,18 @@ throttle_spec = Dict(:aliases=>[:everyN, :every, :N],
 
 if_spec = Dict(:aliases=>[:iff, :when, :onlyif], :default=>true)
 
+path_spec = Dict(:aliases=>[:path, :file], :default=>"traces.jld")
+
 
 trace_kwargspec = Dict(
     :location=>location_spec,
     :lcount=>lcount_spec,
     :everyN=>throttle_spec,
     :iff=>if_spec,
-    :_and_the_rest=>Dict(:fn=>add_exprvals)
+    :_and_the_rest=>Dict(:fn=>add_expr_equalities)
 )
+
+
 
 """
 spec[:default] can be a value or a nullary function that when called returns the default
@@ -74,7 +76,7 @@ get_default(spec) = begin
 end
 
 """
-`kwargparse(kwargspec, exprs; onlyprovided=false)`
+`kwargparse(kwargspec, exprs; no_defaults=false)`
 Parse keyword args passed to your macro
 For each keyword argument you want to handle, provide a argument specification:
     :aliases ::Vector{Symbol} #possible names used for this variable
@@ -83,31 +85,44 @@ For each keyword argument you want to handle, provide a argument specification:
 kwargspec (key word argument specification) is then a Dict from your symbol names => their argument specification as defined above
 Returns: a tuple `(kwargs::Dict{Symbol, Any}, args::Vector{Expr}, arginfo::Dict{Symbol, Dict{Symbol, Any}})`
 kwargs has values for all symbols in your kwargspec, args holds remaining non-kw expressions.
-`arginfo[:sym][:provided]` which tells you if the variable was provided or not. If `onlyprovided`
-is true then the returned Dict will only contain symbols actually specified in exprs.
+`arginfo[:sym][:provided]` which tells you if the variable was provided or not.
+#### kwargs
+If `no_defaults` is true then the returned Dict will only contain symbols actually specified in exprs, i.e. no default values from the kwargspec will be returned.
+If `dropextras` is true then kwargs not in the spec will return false
 """
-kwargparse(kwargspec, exprs; onlyprovided=false) = begin
+kwargparse(kwargspec, exprs; no_defaults=false, dropextras=false) = begin
     kwargs = Dict{Symbol, Any}(key => get_default(spec) for (key, spec) in kwargspec)
+    kwextras = Dict{Symbol, Any}()
     arginfo = Dict{Symbol, Any}(key => arginfo_default() for (key, spec) in kwargspec)
     args = []
     for expr in exprs
+        sym, val = expr.args[1], expr.args[2]
         if typeof(expr) == Expr && expr.head == Symbol("=")
             added = false
             for (key, spec) in kwargspec
                 key == :_and_the_rest && continue
-                if expr.args[1] in spec[:aliases]
+                if sym in spec[:aliases]
                     added = true
                     arginfo[key][:provided] = true
-                    if haskey(spec, :accumulate) && spec[:accumulate]
-                        push!(kwargs[key], expr.args[2])
+                    if get(spec, :accumulate, false)
+                        push!(kwargs[key], val)
                     else
-                        kwargs[key] = expr.args[2]
+                        kwargs[key] = val
                     end
                 end
             end
-            if !added && haskey(kwargspec, :_and_the_rest)
-                kwargs_added = kwargspec[:_and_the_rest][:fn](kwargs, args, arginfo, expr.args[1], expr.args[2])
-                foreach(kwargs_added) do kwarg; arginfo[kwarg] = Dict(:provided => true) end
+            if !added
+                if haskey(kwargspec, :_and_the_rest)
+                    argsrestfn = kwargspec[:_and_the_rest][:fn]
+                    kwargs_added =
+                        argsrestfn(kwargs, args, arginfo,
+                                sym, val)
+                    foreach(kwargs_added) do kwarg;
+                        arginfo[kwarg] = Dict(:provided => true)
+                    end
+                else
+                    !dropextras && (kwextras[sym] = val)
+                end
             end
         else
             push!(args, expr)
@@ -116,14 +131,14 @@ kwargparse(kwargspec, exprs; onlyprovided=false) = begin
     for (key, spec) in kwargspec
         haskey(spec, :convert) && (kwargs[key] = spec[:convert](kwargs[key]))
     end
-    if onlyprovided
+    if no_defaults
         for dic in (kwargs, arginfo)
             filter!(dic) do key,val
                 arginfo[key][:provided]
             end
         end
     end
-    kwargs, args, arginfo
+    kwargs, kwextras, args, arginfo
 end
 
 arginfo_default() = Dict(:provided=>false)

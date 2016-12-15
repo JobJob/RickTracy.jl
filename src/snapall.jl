@@ -36,7 +36,7 @@ macro unwatchall()
 end
 
 macro snapall(kwexprs...)
-    kwargs, extra_exprs, arginfo = kwargparse(trace_kwargspec, kwexprs)
+    kwargs, kwextras, extra_exprs, arginfo = kwargparse(trace_kwargspec, kwexprs)
     watched_exprs = map(parse, watched_exprstrs())
     exprs = vcat(watched_exprs, extra_exprs)
     condition = kwargs[:iff]

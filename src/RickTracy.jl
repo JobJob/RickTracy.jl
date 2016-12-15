@@ -1,6 +1,6 @@
 module RickTracy
 
-using DataStructures
+using DataStructures, JLD
 
 __init__() = begin
     global _num_trace_locations = 0

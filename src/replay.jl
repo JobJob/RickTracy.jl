@@ -9,7 +9,8 @@ function get_lcount(symvals::Dict; loc="")
     dfs = DataFrame[]
     for (sym,val) in symvals
         query = copy(basequery)
-        query[:exprval] = Dict(string(sym)=>val)
+        query[:exprstr] = string(sym)
+        query[:val] = val
         push!(dfs, RickTracy.tracesdf(query))
     end
     join(dfs...; on=:lcount)[:lcount][1]

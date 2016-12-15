@@ -2,7 +2,7 @@
 # Trace View/Accessor Functions
 ###############################################################################
 export @tracevals, @traceitems, @tracevalsdic, @tracesdf, @tracesdic,
-@plotvals
+@plotvals, @savetraces, @loadtraces
 
 """
 `tracevals(query, snaps=happysnaps)`
@@ -67,11 +67,34 @@ plotvals(query=Dict{Symbol, Any}(), snaps=happysnaps) = begin
         label=reshape(collect(keys(dicsnaps)), 1, length(dicsnaps)))
 end
 
-function getquery(exprs)
-    query, exprs, arginfo = kwargparse(trace_kwargspec, exprs; onlyprovided=true)
+function parse_query_args(exprs; kwargspec=trace_kwargspec, no_defaults=true, kwargs...)
+    query, kwextras, exprs, arginfo =
+        kwargparse(kwargspec, exprs; no_defaults=no_defaults, kwargs...)
     !isempty(exprs) && (query[:exprstr] = map(string, exprs))
-    query
+    query, kwextras, exprs, arginfo
 end
+
+getquery(exprs) = parse_query_args(exprs)[1]
+
+function getpath_varname_query(exprs; path="traces.jld", varname="traces")
+    kwargspec = filter(trace_kwargspec) do k,v; k != :_and_the_rest end
+    query, kwextras, exprs, arginfo =
+        parse_query_args(exprs; kwargspec=kwargspec)
+    path    = get(kwextras, :path,    path)
+    varname = get(kwextras, :varname, varname)
+    path, varname, query
+end
+
+function savetraces(; traces=traceitems(), path="traces.jld", varname="traces")
+    @show path varname
+    JLD.save(path, varname, traces)
+end
+
+function loadtraces(; path="traces.jld", varname="traces")
+    @show path varname
+    JLD.load(path, varname)
+end
+
 
 """
 `@tracevals [loc=some_location] [expr1] [expr2] [expr3] ...`
@@ -127,4 +150,20 @@ specified location, and the given expression(s).
 macro plotvals(exprs...)
     query = getquery(exprs)
     :(RickTracy.plotvals($query))
+end
+
+"""
+`@savetraces [path="$(pwd())/traces.jld"] [loc=any_location] [expr1] [expr2] [expr3] ...`
+Saves the raw `TraceItem` snaps to path, optionally
+limited to a particular tracepoint location or expression(s).
+"""
+macro savetraces(exprs...)
+    path, varname, query = getpath_varname_query(exprs)
+    :(RickTracy.savetraces(; traces=RickTracy.traceitems($query),
+        path=$path, varname=$varname))
+end
+
+macro loadtraces(exprs...)
+    path, varname, query = getpath_varname_query(exprs)
+    :(RickTracy.loadtraces(; path=$path, varname=$varname))
 end
