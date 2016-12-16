@@ -96,8 +96,8 @@ kwargparse(kwargspec, exprs; no_defaults=false, dropextras=false) = begin
     arginfo = Dict{Symbol, Any}(key => arginfo_default() for (key, spec) in kwargspec)
     args = []
     for expr in exprs
-        sym, val = expr.args[1], expr.args[2]
         if typeof(expr) == Expr && expr.head == Symbol("=")
+            sym, val = expr.args[1], expr.args[2]
             added = false
             for (key, spec) in kwargspec
                 key == :_and_the_rest && continue

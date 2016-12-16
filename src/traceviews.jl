@@ -2,7 +2,17 @@
 # Trace View/Accessor Functions
 ###############################################################################
 export @tracevals, @traceitems, @tracevalsdic, @tracesdf, @tracesdic,
-@plotvals, @savetraces, @loadtraces
+@plotvals, @savetraces, @loadtraces, setsnaps
+
+"""
+`setsnaps(traces::Vector{TraceItem})`
+
+Set the global RickTracy.happysnaps used by default in traceviews to traces.
+Useful when loading traces from file
+"""
+function setsnaps(traces::Vector{TraceItem})
+    global happysnaps = traces
+end
 
 """
 `tracevals(query, snaps=happysnaps)`
@@ -90,9 +100,10 @@ function savetraces(; traces=traceitems(), path="traces.jld", varname="traces")
     JLD.save(path, varname, traces)
 end
 
-function loadtraces(; path="traces.jld", varname="traces")
-    @show path varname
-    JLD.load(path, varname)
+function loadtraces(; path="traces.jld", varname="traces", asdefault=true)
+    traces = JLD.load(path, varname)
+    asdefault && (global happysnaps = traces)
+    traces
 end
 
 

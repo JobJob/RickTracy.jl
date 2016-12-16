@@ -1,6 +1,8 @@
 using FactCheck
 using RickTracy
 
+num_item_fields = length(fieldnames(TraceItem))
+
 facts("first things first") do
     fred = "flintstone"
     barney = 10
@@ -106,11 +108,11 @@ facts("tracesdf & tracesdic") do
     end
     df1 = @tracesdf loc=ok1
     @fact sort!(names(df1)) --> sort!(fieldnames(TraceItem))
-    @fact size(df1) --> (10, 4)
+    @fact size(df1) --> (10, num_item_fields)
 
     df2 = @tracesdf
     @fact sort!(names(df1)) --> sort!(fieldnames(TraceItem))
-    @fact size(df2) --> (20, 4)
+    @fact size(df2) --> (20, num_item_fields)
 
     dicky = @tracesdic i
     @fact dicky[:val] --> collect(1:10)
@@ -126,13 +128,13 @@ facts("filter multiple expressions") do
     df1 = @tracesdf loc=ok1
     df1i = @tracesdf loc=ok1 i i^2
     @fact sort!(names(dfi)) --> sort!(fieldnames(TraceItem))
-    @fact size(dfi) --> (20, 4)
+    @fact size(dfi) --> (20, num_item_fields)
     @fact dfi --> df1
     @fact dfi --> df1i
 
     df2 = @tracesdf
     @fact sort!(names(df1)) --> sort!(fieldnames(TraceItem))
-    @fact size(df2) --> (30, 4)
+    @fact size(df2) --> (30, num_item_fields)
 
     dickfor = @tracevalsdic i i^2
     @fact dickfor["i"] --> collect(1:10)
