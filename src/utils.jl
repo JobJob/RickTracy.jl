@@ -22,6 +22,8 @@ Given an iterable of objects, `collection`, returns a new iterable of all
 objects in collection who match `query` as tested by `ismatch(query, obj)`
 """
 filterquery{T<:Any}(query::Dict{Symbol, T}, collection::AbstractArray) = begin
+    isempty(query) && return collection #XXX non-copy if empty query
+    #TODO change to return a view not a copy
     filter(collection) do obj ismatch(query, obj) end
 end
 
@@ -96,8 +98,8 @@ kwargparse(kwargspec, exprs; no_defaults=false, dropextras=false) = begin
     arginfo = Dict{Symbol, Any}(key => arginfo_default() for (key, spec) in kwargspec)
     args = []
     for expr in exprs
-        sym, val = expr.args[1], expr.args[2]
         if typeof(expr) == Expr && expr.head == Symbol("=")
+            sym, val = expr.args[1], expr.args[2]
             added = false
             for (key, spec) in kwargspec
                 key == :_and_the_rest && continue
