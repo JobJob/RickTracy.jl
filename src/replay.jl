@@ -77,35 +77,61 @@ function getsliders(itervars)
     sliders
 end
 
+function kwargs2assignment_block!(kw_ex)
+    kw_ex.head = :block #:parameters to block
+    kw_symvals = map(kw_ex.args) do ex
+        ex.head = Symbol("=")
+        ex.args[1], ex.args[2]
+    end
+    kw_syms, kw_vals = zip(kw_symvals...) |> collect #unzip
+    kw_ex, [kw_syms...], [kw_vals...]
+end
+
 macro replay(expr)
-    @eval quote using Interact, DataFrames end
-    itervars = expr.args[1].args
+    @eval begin using Interact, DataFrames end
+    fnargs = expr.args[1].args
+    if isa(fnargs[1], Expr)
+        #kwargs
+        widget_bindings, wsyms, widgets = kwargs2assignment_block!(fnargs[1])
+        deleteat!(fnargs, 1)
+        foreach(wsym->push!(fnargs, wsym), wsyms) #add widgsym vals as arguments
+        wsigs_ex = :()
+        foreach(wsym->push!(wsigs_ex.args, :(signal($wsym))), wsyms)
+        widgs_ex = :()
+        foreach(wsym->push!(widgs_ex.args, :($wsym)), wsyms)
+    end
+    itervars = expr.args[1].args[1:end-length(wsyms)]
     varstrs = String.(unique(RickTracy.tracesdf(), :exprstr)[:exprstr])
     filter!(varstrs) do vstr; !(vstr in string.(itervars)) end
     varsyms = Symbol.(varstrs)
-    # dump(expr)
-    block = expr.args[2].args[2]
+    block = expr.args[2].args[2] #function body
     itervalpairs = :()
     foreach(itervars) do sym
         push!(itervalpairs.args, :($(string(sym)) => $sym))
     end
-    # get the traces where the iterators had their particular values
     unshift!(block.args,
+        # get the traces where the iterators had their particular (current) values
+        # and the values of the other syms at those traces
         quote
             _traces = RickTracy.traces4symvals($(itervalpairs)...)
             _symvals = RickTracy.vals4traces($varstrs, _traces)
         end)
-    #get the values of the other syms at those traces and assign them
-    #to local vars of the same name ^_^
+
+    # assign them to local vars with the same name ^_^
     for (i,sym) in enumerate(varsyms)
         insert!(block.args, 2,
             :($sym = _symvals[$i])
         )
     end
-    quote
-        @eval begin using DataFrames end
+    res = quote
+        @eval begin using Interact, DataFrames end
         sliders = RickTracy.getsliders($itervars)
-        display.(sliders)
-        map($expr, Interact.signal.(sliders)...; typ=Any)
+        $widget_bindings
+        widglayout = hbox(vbox(sliders...), vbox($widgs_ex...))
+        display(widglayout)
+        map($expr,
+            signal.(sliders)...,
+            $(wsigs_ex)...; typ=Any)
     end |> esc
+    res
 end
