@@ -18,7 +18,7 @@ function traces4symvals(symvals::Dict; loc="")
     lcount = 0
     startidx = 0
     endidx = 0
-    matched = Array(Bool, length(symvals))
+    matched = fill(false, length(symvals))
     poss_match = true
     for (i, ti) in enumerate(tis)
         if ti.lcount != lcount
@@ -45,6 +45,11 @@ function traces4symvals(symvals::Dict; loc="")
             end
         end
     end
+    # handle all matched on the last iteration, slightly more efficient than
+    # to move the check to the bottom of the loop and change the i-1 to i
+    # since the check currently only happens when the lcount changes.
+    poss_match && all(matched) && endidx == 0 && (endidx = length(tis))
+
     tis[startidx:endidx]
 end
 
@@ -94,7 +99,8 @@ macro replay(expr)
     #to local vars of the same name ^_^
     for (i,sym) in enumerate(varsyms)
         insert!(block.args, 2,
-            :($sym = _symvals[$i]))
+            :($sym = _symvals[$i])
+        )
     end
     quote
         @eval begin using DataFrames end
