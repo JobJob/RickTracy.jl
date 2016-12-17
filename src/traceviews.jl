@@ -26,7 +26,7 @@ end
 `traceitems(query, snaps=happysnaps)`
 Get all TraceItems from `snaps` that match the `query`
 """
-traceitems(query=Dict{Symbol, Any}(), snaps=happysnaps) = filterquery(query, snaps)
+traceitems(query=Dict(), snaps=happysnaps) = filterquery(query, snaps)
 
 """
 `tracevalsdic(query, snaps=happysnaps)`

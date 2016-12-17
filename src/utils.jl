@@ -22,6 +22,8 @@ Given an iterable of objects, `collection`, returns a new iterable of all
 objects in collection who match `query` as tested by `ismatch(query, obj)`
 """
 filterquery{T<:Any}(query::Dict{Symbol, T}, collection::AbstractArray) = begin
+    isempty(query) && return collection #XXX non-copy if empty query
+    #TODO change to return a view not a copy
     filter(collection) do obj ismatch(query, obj) end
 end
 
