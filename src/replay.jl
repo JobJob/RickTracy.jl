@@ -1,6 +1,8 @@
 export @replay
 import Interact, Reactive, DataFrames
 
+const DEBUG = true
+
 """
 `traces4symvals(symvals::Dict; loc="")`
 
@@ -118,7 +120,7 @@ function getsliders(itervars)
     sliders = Array(Interact.Slider, length(itervars))
     slsigs  = Array(Reactive.Signal, length(itervars))
     minidx, maxidx = 1,2
-    @show itervars
+    # @show itervars
     for (i, ivar) in enumerate(itervars)
         minmax = iterator_extrema[i]
         prev_itervals = (map(s->s.value, sliders[1:i-1])...)
@@ -130,14 +132,14 @@ function getsliders(itervars)
         if i > 1
             #keep the ranges accurate on sliders, dependent on prev iterator values
             prevsigs = slsigs[1:i-1]
-            @show i prevsigs
+            # @show i prevsigs
             range_sig = Reactive.map(prevsigs...) do ivarvals...
                 #unfortunately we can't use ivarvals, because changing the previous
                 #slider's range will only push a value to slider's sig asynchronously
                 #so ivarvals are old signal vals (whose signals are about to update)
                 prev_itervals = (map(s->s.value, sliders[1:i-1])...)
-                @show i ivarvals prev_itervals minmax[prev_itervals]
-                haskey(minmax, (ivarvals...)) && (@show minmax[(ivarvals...)])
+                # @show i ivarvals prev_itervals minmax[prev_itervals]
+                # haskey(minmax, (ivarvals...)) && (@show minmax[(ivarvals...)])
                 (sliders[i].value < minmax[prev_itervals][minidx]) &&
                     set!(sliders[i], :value, minmax[prev_itervals][minidx])
                 (sliders[i].value > minmax[prev_itervals][maxidx]) &&
@@ -187,13 +189,29 @@ macro replay(expr)
         # and the values of the other syms at those traces
         quote
             _traces = RickTracy.traces4symvals($(itervalpairs)...)
+            if isempty(_traces)
+                if RickTracy.DEBUG
+                    println(STDERR, "traces are empty for ", $itervalpairs)
+                end
+                return false
+            end
             _symvals = RickTracy.vals4traces($varstrs, _traces)
         end)
 
     # assign them to local vars with the same name ^_^
     for (i,sym) in enumerate(varsyms)
+        symstr = string(sym)
         insert!(block.args, 2,
-            :($sym = _symvals[$i])
+            quote
+                local $sym
+                try
+                    $sym = _symvals[$i]
+                catch e
+                    if RickTracy.DEBUG
+                        println(STDERR, "Failed to set ", $symstr, ", _symvals: ", _symvals, ", i: ", $i, "_traces: ", _traces)
+                    end
+                end
+            end
         )
     end
     res = quote
@@ -206,5 +224,6 @@ macro replay(expr)
             slsigs...,
             $(wsigs_ex)...; typ=Any) |> Reactive.preserve
     end |> esc
+    # dump(res, maxdepth = 30)
     res
 end
