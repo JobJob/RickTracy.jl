@@ -145,3 +145,5 @@ facts("filter multiple expressions") do
 end
 
 FactCheck.exitstatus()
+include("iter_extrema.jl")
+include("traces4symvals.jl")

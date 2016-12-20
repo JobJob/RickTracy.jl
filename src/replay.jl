@@ -1,8 +1,8 @@
 export @replay
-import Interact, DataFrames
+import Interact, Reactive, DataFrames
 
 """
-`lcount4symvals(symvals::Dict; loc="")`
+`traces4symvals(symvals::Dict; loc="")`
 
 `symvals` is a Dict of symbols => their value at the desired
 trace line hit count (lcount).
@@ -11,7 +11,7 @@ Returns:
 a vector of TraceItems corresponding to the `@snapall` where all syms had their
 respective vals
 """
-function traces4symvals(symvals::Dict; loc="")
+function traces4symvals(symvals::Dict{String}; loc="", traces=happysnaps)
     query = Dict{Symbol, Any}()
     loc != "" && (query[:location] = loc)
     tis = traceitems(query)
@@ -20,16 +20,21 @@ function traces4symvals(symvals::Dict; loc="")
     endidx = 0
     matched = fill(false, length(symvals))
     poss_match = true
+    got_match = false
     for (i, ti) in enumerate(tis)
         if ti.lcount != lcount
             if poss_match && all(matched)
+                got_match = true
                 endidx = i - 1
+            elseif got_match
+                #previous lcount were matching, now no longer matching, we're done
                 break
+            else
+                startidx = i
+                poss_match = true
             end
-            poss_match = true
             fill!(matched, false)
             lcount = ti.lcount
-            startidx = i
         end
         !poss_match && continue
         for (i, (sym, val)) in enumerate(symvals)
@@ -47,14 +52,19 @@ function traces4symvals(symvals::Dict; loc="")
     end
     # handle all matched on the last iteration, slightly more efficient than
     # to move the check to the bottom of the loop and change the i-1 to i
-    # since the check currently only happens when the lcount changes.
-    poss_match && all(matched) && endidx == 0 && (endidx = length(tis))
-
+    # since the check currently only happens when the lcount changes (not every outer loop iteration)
+    poss_match && all(matched) && (endidx = length(tis))
     tis[startidx:endidx]
 end
 
 traces4symvals(symvals::Pair...; loc="") = traces4symvals(Dict(symvals); loc=loc)
 
+"""
+`vals4traces(syms::Vector{String}, traces; loc="")`
+
+Given a vector of variables `syms` and a list of traces, returns a vector of the
+first value found in `traces` for each sym.
+"""
 function vals4traces(syms::Vector{String}, traces; loc="")
     vals = Array(Any, length(syms))
     for ti in traces
@@ -66,15 +76,78 @@ function vals4traces(syms::Vector{String}, traces; loc="")
     vals
 end
 
-function getsliders(itervars)
-    sliders = Interact.Slider[]
-    tvd = RickTracy.tracevalsdic()
-    for ivar in itervars
-        ivarstr = string(ivar)
-        rnge = UnitRange(extrema(tvd[ivarstr])...)
-        push!(sliders, Interact.slider(rnge; label=ivarstr))
+"""
+Values of `itervars[i]` assumed to be `Int`s and for fixed values of itervars[1:i-1]
+they should be increasing (as index into `traces` increases). Also assumed is that
+the nth trace of itervars[j] will always appear before the nth trace of itervars[j+1]
+for all j. I.e. the iter vars are watched from slowest moving (outer-most loop iterator)
+to fastest (inner-most loop iterator).
+"""
+function get_iter_extrema(itervars; traces=RickTracy.happysnaps)
+    N = length(itervars)
+    ivarstrs = string.(itervars)
+    iter2idx = Dict(zip(ivarstrs, 1:N))
+    extreme_default = (typemax(Int), typemin(Int)) #min, max worst case scenarios
+    iter_extrema = [Dict{NTuple{i-1, Int}, Tuple{Int,Int}}() for i in 1:N]
+    tpl_keys = zeros(Int, N)
+    minpos, maxpos = (1,2)
+    for (tidx, ti) in enumerate(traces)
+        !(ti.exprstr in ivarstrs) && continue
+        ivar = ti.exprstr
+        val = ti.val
+        i = iter2idx[ivar]
+        tpl_keys[i] = ti.val
+        tplkey = (tpl_keys[1:i-1]...)
+        imin, imax = get!(iter_extrema[i], tplkey, extreme_default)
+        new_min_or_max = false
+        if val < imin
+            imin = val
+            new_min_or_max = true
+        end
+        if val > imax
+            imax = val
+            new_min_or_max = true
+        end
+        new_min_or_max && (iter_extrema[i][tplkey] = (imin, imax))
     end
-    sliders
+    iter_extrema
+end
+
+function getsliders(itervars)
+    iterator_extrema = get_iter_extrema(itervars)
+    sliders = Array(Interact.Slider, length(itervars))
+    slsigs  = Array(Reactive.Signal, length(itervars))
+    minidx, maxidx = 1,2
+    @show itervars
+    for (i, ivar) in enumerate(itervars)
+        minmax = iterator_extrema[i]
+        prev_itervals = (map(s->s.value, sliders[1:i-1])...)
+        initial_range = UnitRange(minmax[prev_itervals]...)
+        init_val = minmax[prev_itervals][minidx]
+        sliders[i] = slider(initial_range;
+                            value=init_val, label=string(ivar))
+        slsigs[i] = signal(sliders[i])
+        if i > 1
+            #keep the ranges accurate on sliders, dependent on prev iterator values
+            prevsigs = slsigs[1:i-1]
+            @show i prevsigs
+            range_sig = Reactive.map(prevsigs...) do ivarvals...
+                #unfortunately we can't use ivarvals, because changing the previous
+                #slider's range will only push a value to slider's sig asynchronously
+                #so ivarvals are old signal vals (whose signals are about to update)
+                prev_itervals = (map(s->s.value, sliders[1:i-1])...)
+                @show i ivarvals prev_itervals minmax[prev_itervals]
+                haskey(minmax, (ivarvals...)) && (@show minmax[(ivarvals...)])
+                (sliders[i].value < minmax[prev_itervals][minidx]) &&
+                    set!(sliders[i], :value, minmax[prev_itervals][minidx])
+                (sliders[i].value > minmax[prev_itervals][maxidx]) &&
+                    set!(sliders[i], :value, minmax[prev_itervals][maxidx])
+                UnitRange(minmax[prev_itervals]...)
+            end |> Reactive.preserve
+            set!(sliders[i], :range, range_sig)
+        end
+    end
+    sliders, slsigs
 end
 
 function kwargs2assignment_block!(kw_ex)
@@ -124,14 +197,14 @@ macro replay(expr)
         )
     end
     res = quote
-        @eval begin using Interact, DataFrames end
-        sliders = RickTracy.getsliders($itervars)
+        @eval begin using Interact, Reactive, DataFrames end
+        sliders, slsigs = RickTracy.getsliders($itervars)
         $widget_bindings
         widglayout = hbox(vbox(sliders...), vbox($widgs_ex...))
         display(widglayout)
-        map($expr,
-            signal.(sliders)...,
-            $(wsigs_ex)...; typ=Any)
+        Reactive.map($expr,
+            slsigs...,
+            $(wsigs_ex)...; typ=Any) |> Reactive.preserve
     end |> esc
     res
 end

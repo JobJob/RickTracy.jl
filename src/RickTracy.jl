@@ -5,7 +5,7 @@ using DataStructures, JLD
 __init__() = begin
     global _num_trace_locations = 0
     global location_counts = DefaultDict(String, Int, 1) #number of times tracepoint at each location has been hit (but not necessarily logged)
-    global watched_exprs = Dict{String, Bool}()
+    global watched_exprs = OrderedDict{String, Bool}()
     global happysnaps = Vector{TraceItem}()
     global autowatch = true
 end
