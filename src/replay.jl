@@ -165,6 +165,7 @@ end
 macro replay(expr)
     @eval begin using Interact, DataFrames end
     fnargs = expr.args[1].args
+    numwsyms = 0
     if isa(fnargs[1], Expr)
         #kwargs
         widget_bindings, wsyms, widgets = kwargs2assignment_block!(fnargs[1])
@@ -174,8 +175,9 @@ macro replay(expr)
         foreach(wsym->push!(wsigs_ex.args, :(signal($wsym))), wsyms)
         widgs_ex = :()
         foreach(wsym->push!(widgs_ex.args, :($wsym)), wsyms)
+        numwsyms = length(wsyms)
     end
-    itervars = expr.args[1].args[1:end-length(wsyms)]
+    itervars = expr.args[1].args[1:(end-numwsyms)]
     varstrs = String.(unique(RickTracy.tracesdf(), :exprstr)[:exprstr])
     filter!(varstrs) do vstr; !(vstr in string.(itervars)) end
     varsyms = Symbol.(varstrs)
@@ -184,6 +186,7 @@ macro replay(expr)
     foreach(itervars) do sym
         push!(itervalpairs.args, :($(string(sym)) => $sym))
     end
+    unshift!(fnargs, :prev) #for the foldp to return the prev valid value if we run into trouble
     unshift!(block.args,
         # get the traces where the iterators had their particular (current) values
         # and the values of the other syms at those traces
@@ -193,7 +196,7 @@ macro replay(expr)
                 if RickTracy.DEBUG
                     println(STDERR, "traces are empty for ", $itervalpairs)
                 end
-                return false
+                return prev
             end
             _symvals = RickTracy.vals4traces($varstrs, _traces)
         end)
@@ -220,7 +223,7 @@ macro replay(expr)
         $widget_bindings
         widglayout = hbox(vbox(sliders...), vbox($widgs_ex...))
         display(widglayout)
-        Reactive.map($expr,
+        Reactive.foldp($expr,
             slsigs...,
             $(wsigs_ex)...; typ=Any) |> Reactive.preserve
     end |> esc
