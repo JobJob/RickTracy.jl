@@ -1,16 +1,45 @@
 # RickTracy
-### Intro
-This package makes it easy to trace values of your variables (or other expressions) throughout the runtime of our program.
+This package makes it easy to trace the values of variables over the runtime of your program, and provides some tools to use these traces to analyse your code or the system you are modelling.
 
-Example use cases:
-* debugging
-* logging
-* easily recording the progression of values for variables of interest, e.g. in simulation code
+#### Tracing
+```
+@watch i j excitement  # set the variables you want to trace
+for i in 1:10
+   for j in 1:10
+      excitement = i*j
+      @snapall  # take a snapshot of their values
+   end
+end
 
-###Install
+#save them to disk if you like
+savetraces(path="sometraces.jld")
+```
+
+#### Analysis
+
+The `@replay` macro is a bit like a poor man's reversible debugger; it uses [Interact](https://github.com/JuliaGizmos/Interact.jl) to allow you to step forward and backward through "time" (trace points in your program) and automatically assigns the variables traced in the original program to the values they had, enabling easier analysis:
+```
+loadtraces(path="sometraces.jld")
+res = @replay (i,j)->begin
+   "when i was $i and j was $j excitement was $excitement"
+end
+```
+![replay demo in IJulia](/images/replay_excitement_med.gif?raw=true "replay demo in IJulia")
+
+You can also export your traces as a DataFrame for arbitrary querying and use convenience functions to easily plot values of your variables over time, or under specific conditions.
+
+It's still a little immature, but so far I've found it helpful in analysing both simulation code and algorithms for agent learning in virtual enviroments.
+
+### Warning
+
+The package is pretty rough around the edges and is relatively untested, so there's every chance lots of things won't work. Please feel free to report bugs and submit PRs.
+
+(Also: this README contains bad Rick and Morty references)
+
+### Install
 `Pkg.clone("https://github.com/JobJob/RickTracy.jl")`
 
-###Example usage
+### Basic Usage
 ```
 using RickTracy
 
@@ -22,7 +51,7 @@ end
 
 @plotvals i i^2
 ```
-![i and i^2 graph](/images/plotvals i i^2.png?raw=true "i and i^2 graph")
+![i and i^2 graph](/images/plotvalsii^2.png?raw=true "i and i^2 graph")
 
 To get the values of all traced expressions at a named location use
 ```
@@ -58,10 +87,10 @@ To get all (or some of) your traces as a DataFrame, use `@tracesdf`, e.g.:
 @tracesdf i i^2
 ```
 
-###Conditional Tracing
+### Conditional Tracing
 Sometimes you only want to take a snapshot/trace every, say, 12th time the line is hit, to do so use `@snap everyN=12` or simply `@snap N=12` (`every` and `N` are valid aliases for  `everyN`)
 
-#####Example:
+##### Example
 
 The following takes a snap/trace of a variable/expression every 2 times
 the tracepoint is hit:
@@ -107,20 +136,60 @@ results in:
 ```
 
 ### Accessing your Traces
-N.b. all commands that return your trace results below, can generally be limited to a particular tracepoint location or expression(s), using loc=some_location and the expression(s).
-`@tracevals [loc=some_location] [expr1] [expr2] [expr3] ...`: returns a vector of the values of all traced expressions at all tracepoints.
+Use the commands below to return traces in various formats. When called with no arguments all traces are returned. To limit the results to a specific location and expressions, append `loc=some_location expr1 expr2 expr3 ...` to the command.
 
-`@plotvals [loc=any_location] [expr1] [expr2] [expr3] ...`: Make a plot of the values of all traced expressions.
+---
+
+```
+@tracevals [loc=some_location] [expr1] [expr2] [expr3] ...
+```
+returns a vector of the values of traced expressions. E.g.
+
+```
+@tracevals
+```
+returns a single vector containing the values of all traced expressions at all locations.
+```
+@tracevals loc=loopcity i
+```
+returns the values of variable `i` at location `loopcity`
+
+---
+
+```
+@plotvals [loc=any_location] [expr1] [expr2] [expr3] ...
+```
+returns a plot of the values of all traced expressions.
 N.b. will break if any values are non-numeric and probably in
 lots of other cases too.
 
-`@tracevalsdic [loc=a_location] [expr1] [expr2] [expr3] ...`: returns a Dict mapping expressions=>values all traced variables/expressions took.
+---
 
-`@tracesdf [loc=any_location] [expr1] [expr2] [expr3] ...`: returns a DataFrame with columns `:location`, `:exprstr`, `:val`, `:ts`, with each row holding a single snapshot of one expression at one trace location.
+```
+@tracevalsdic [loc=a_location] [expr1] [expr2] [expr3] ...
+```
+returns a Dict mapping expressions=>the values the traced variables/expressions took.
 
-`@tracesdic [loc=any_location] [expr1] [expr2] [expr3] ...`: returns a Dict{Symbol, Vector{Any}} with keys `:location`, `:exprstr`, `:val`, `:ts`, with values being a vector of the value for that field for all snaps.
+---
 
-`@traceitems [loc=any_location] [expr1] [expr2] [expr3] ...`: returns a Vector of all the raw `TraceItem ` snaps.
+```
+@tracesdf [loc=any_location] [expr1] [expr2] [expr3] ...
+```
+returns a DataFrame with columns `:location`, `:exprstr`, `:val`, `:ts`, with each row holding a single snapshot of one expression at one trace location.
+
+---
+
+```
+@tracesdic [loc=any_location] [expr1] [expr2] [expr3] ...
+```
+returns a `Dict{Symbol, Vector{Any}}` with keys `:location`, `:exprstr`, `:val`, `:ts`, with values being a vector of the value for that field for all snaps.
+
+---
+
+```
+@traceitems [loc=any_location] [expr1] [expr2] [expr3] ...
+```
+returns a Vector of all the raw `TraceItem ` snaps.
 
 #### The TraceItem type
 Here's the definition of the `TraceItem` type:
@@ -132,6 +201,8 @@ type TraceItem{T}
     ts::Float64 #time stamp
 end
 ```
+
+---
 
 ### Watch and Snapall
 
@@ -214,7 +285,7 @@ i.e. `morty` is only logged with the explicit call to `@snap morty`, not the `@s
 
 `@unwatchall`: clear the watchlist
 
-###Clearance (Clarence)
+### Clearance (Clarence)
 `@clearsnaps expr`: delete all the snapshots for an expression
 
 `@clearallsnaps`: delete all the snapshots for all expressions

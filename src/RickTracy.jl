@@ -4,7 +4,7 @@ using DataStructures, JLD
 
 __init__() = begin
     global _num_trace_locations = 0
-    global location_counts = DefaultDict(String, Int, 1) #number of times tracepoint at each location has been hit (but not necessarily logged)
+    global location_counts = DefaultDict{String, Int}(1) #number of times tracepoint at each location has been hit (but not necessarily logged)
     global watched_exprs = OrderedDict{String, Bool}()
     global happysnaps = Vector{TraceItem}()
     global autowatch = true
@@ -14,6 +14,7 @@ include("types.jl")
 include("snapdat.jl")
 include("snapall.jl")
 include("traceviews.jl")
+include("io.jl")
 include("replay.jl")
 include("clarence.jl")
 include("utils.jl")

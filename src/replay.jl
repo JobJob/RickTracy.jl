@@ -3,6 +3,13 @@ import Interact, Reactive, DataFrames
 
 const DEBUG = true
 
+function Reactive.foldp(f::Function, inputs::Signal...; typ=Void)
+    v0 = f(nothing,  map(value, inputs)...)
+    typ == Void && (typ = typeof(v0))
+    foldp(f, v0, inputs...; typ=typ)
+end
+
+
 """
 `traces4symvals(symvals::Dict; loc="")`
 
@@ -24,7 +31,12 @@ function traces4symvals(symvals::Dict{String}; loc="", traces=happysnaps)
     poss_match = true
     got_match = false
     for (i, ti) in enumerate(tis)
-        if ti.lcount != lcount
+        if ti.lcount != lcount #XXX a more general way to implement this which would
+            #enable `@snap`s in other code locations to be picked up, would be to
+            #check for changes in any of the iterator values (symvals) rather than
+            #changes in lcount. Implement using a cur_itervals Dict(exprstr => val).
+            #empty! it if length(cur_itervals) == length(symvals) &&
+            # !all(values(symvals) .== values(cur_itervals)), that way it will always have the seen values for the current iteration.
             if poss_match && all(matched)
                 got_match = true
                 endidx = i - 1
@@ -166,6 +178,7 @@ macro replay(expr)
     @eval begin using Interact, DataFrames end
     fnargs = expr.args[1].args
     numwsyms = 0
+    widget_bindings = wsigs_ex = widgs_ex = :()
     if isa(fnargs[1], Expr)
         #kwargs
         widget_bindings, wsyms, widgets = kwargs2assignment_block!(fnargs[1])

@@ -97,18 +97,6 @@ function getpath_varname_query(exprs; path="traces.jld", varname="traces")
     path, varname, query
 end
 
-function savetraces(; traces=traceitems(), path="traces.jld", varname="traces")
-    @show path varname
-    JLD.save(path, varname, traces)
-end
-
-function loadtraces(; path="traces.jld", varname="traces", asdefault=true)
-    traces = JLD.load(path, varname)
-    asdefault && (global happysnaps = traces)
-    traces
-end
-
-
 """
 `@tracevals [loc=some_location] [expr1] [expr2] [expr3] ...`
 returns a vector of all the values that variables/expressions
